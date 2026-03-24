@@ -9,16 +9,13 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>HUD v0.1.0</title>
+<title>HUD v0.1.1</title>
 <style>
-/* ─────────────────────────────────────────────────
-   RESET & BASE
-───────────────────────────────────────────────── */
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
 
 :root {
   --col: #00ffff;
-  --col-bd: rgba(0,255,255,0.15);
+  --col-bd: rgba(0,255,255,0.20);
   --dim: 0;
 }
 
@@ -32,9 +29,7 @@ html, body {
   touch-action:none;
 }
 
-/* ─────────────────────────────────────────────────
-   BRIGHTNESS OVERLAY
-───────────────────────────────────────────────── */
+/* ── Brightness overlay ── */
 #dim-overlay {
   position:fixed; inset:0;
   background:#000;
@@ -43,88 +38,72 @@ html, body {
   z-index:800;
 }
 
-/* ─────────────────────────────────────────────────
-   HUD ROOT  — portrait = fills screen normally
-              landscape = content 90° rotated so it
-              appears as if phone is held sideways
-───────────────────────────────────────────────── */
+/* ── HUD root ──
+   Portrait : fills screen as-is
+   Landscape: box (100vh × 100vw) rotated –90°
+              so it looks like phone held sideways
+   
+   Centering on portrait phone (W × H, W < H):
+     element size: width=H, height=W
+     we want center = (W/2, H/2)
+     → left = 50vw − 50vh  (negative)
+     → top  = 50vh − 50vw  (positive)
+*/
 #hud-root {
   position:fixed; inset:0;
 }
-
-/*
-  Landscape simulation:
-  Create a box sized (100vh × 100vw) which has landscape
-  proportions on a portrait phone, then rotate it –90°
-  so it visually fills the portrait screen while its
-  internal content renders as a wide landscape layout.
-
-  Centering math (portrait screen W×H, W<H):
-    element: width=H, height=W
-    center before rotation: (left + H/2, top + W/2)
-    we want center = (W/2, H/2)
-    → left = W/2 − H/2 = 50vw − 50vh  (negative)
-    → top  = H/2 − W/2 = 50vh − 50vw  (positive)
-*/
 body.ls #hud-root {
   inset: unset;
   width:  100vh;
   height: 100vw;
-  top:  calc(50vh - 50vw);
-  left: calc(50vw - 50vh);
+  top:    calc(50vh - 50vw);
+  left:   calc(50vw - 50vh);
   transform: rotate(-90deg);
   transform-origin: 50% 50%;
 }
 
-/* ─────────────────────────────────────────────────
-   MIRROR & KEYSTONE WRAPPERS
-───────────────────────────────────────────────── */
+/* ── Mirror / Keystone wrappers ── */
 #hud-mirror, #hud-ks {
   width:100%; height:100%;
   transform-origin: center center;
 }
 
-/* ─────────────────────────────────────────────────
-   MAIN GRID
-───────────────────────────────────────────────── */
+/* ── Main grid ── */
 #hud {
   width:100%; height:100%;
   display:grid;
   position:relative;
 }
 
-/* Portrait: speed tall, clock mid, compass strip */
+/* Portrait */
 body.pt #hud {
   grid-template:
     "spd" 2fr
     "clk" 1fr
-    "cmp" minmax(70px, 1fr)
+    "cmp" minmax(72px, 1fr)
     / 1fr;
 }
-
-/* Landscape: speed left 2/3, clock right 1/3, compass full-width strip */
+/* Landscape (inside the rotated box) */
 body.ls #hud {
   grid-template:
     "spd clk" 1fr
-    "cmp cmp" minmax(70px, 22%)
+    "cmp cmp" minmax(72px, 23%)
     / 2fr 1fr;
 }
 
-/* subtle scan-line texture — HUD feel without glow */
+/* Scan-line texture */
 #hud::after {
   content:'';
   position:absolute; inset:0;
   background: repeating-linear-gradient(
     to bottom,
     transparent 0, transparent 3px,
-    rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+    rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px
   );
   pointer-events:none; z-index:2;
 }
 
-/* ─────────────────────────────────────────────────
-   SECTIONS
-───────────────────────────────────────────────── */
+/* ── Sections ── */
 #s-spd, #s-clk, #s-cmp {
   position:relative; overflow:hidden;
   display:flex; align-items:center; justify-content:center;
@@ -143,29 +122,23 @@ body.pt #s-clk {
   grid-area:cmp;
   border-top:1px solid var(--col-bd);
 }
-
 canvas { display:block }
 
-/* ─────────────────────────────────────────────────
-   CORNER BRACKETS (fixed to viewport)
-───────────────────────────────────────────────── */
+/* ── Corner brackets ── */
 .bkt {
   position:fixed; width:18px; height:18px;
-  pointer-events:none; z-index:3;
-  opacity:0.20;
+  pointer-events:none; z-index:3; opacity:0.25;
 }
 .bkt-tl { top:5px;    left:5px;  border-top:2px solid var(--col); border-left:2px solid var(--col) }
 .bkt-tr { top:5px;    right:5px; border-top:2px solid var(--col); border-right:2px solid var(--col) }
 .bkt-bl { bottom:5px; left:5px;  border-bottom:2px solid var(--col); border-left:2px solid var(--col) }
 .bkt-br { bottom:5px; right:5px; border-bottom:2px solid var(--col); border-right:2px solid var(--col) }
 
-/* ─────────────────────────────────────────────────
-   MENU BUTTON
-───────────────────────────────────────────────── */
+/* ── Menu button ── */
 #mbtn {
   position:fixed; top:7px; right:7px;
   width:36px; height:36px;
-  background:rgba(0,0,0,0.82);
+  background:rgba(0,0,0,0.85);
   border:1px solid var(--col-bd);
   border-radius:3px;
   color:var(--col);
@@ -175,12 +148,10 @@ canvas { display:block }
 }
 #mbtn:active { background:rgba(255,255,255,0.06) }
 
-/* ─────────────────────────────────────────────────
-   MENU POPUP
-───────────────────────────────────────────────── */
+/* ── Menu popup ── */
 #mpop {
   position:fixed; top:50px; right:7px;
-  width:280px; max-height:84vh;
+  width:290px; max-height:84vh;
   overflow-y:auto;
   background:#000;
   border:1px solid var(--col-bd);
@@ -200,31 +171,28 @@ canvas { display:block }
 }
 .m-close {
   background:none; border:none;
-  color:var(--col); font-size:14px; opacity:0.35;
-  cursor:pointer; padding:0 2px;
-  font-family:inherit;
+  color:var(--col); font-size:14px; opacity:0.40;
+  cursor:pointer; padding:0 2px; font-family:inherit;
 }
 .m-grp  { margin-bottom:16px }
 .m-gtl  {
   font-size:8px; letter-spacing:3px;
-  color:var(--col); opacity:0.35;
-  margin-bottom:9px;
+  color:var(--col); opacity:0.35; margin-bottom:9px;
 }
 .m-row  {
   display:flex; align-items:center;
   justify-content:space-between; margin-bottom:8px;
 }
-.m-lbl  { color:rgba(255,255,255,0.60); font-size:12px }
+.m-lbl  { color:rgba(255,255,255,0.55); font-size:12px }
 .m-pair { display:flex; gap:4px }
 
-/* toggle buttons */
 .tbtn {
   background:rgba(255,255,255,0.03);
   border:1px solid rgba(255,255,255,0.10);
   border-radius:2px;
-  color:rgba(255,255,255,0.30);
+  color:rgba(255,255,255,0.28);
   font-size:10px; letter-spacing:1px;
-  padding:5px 12px;
+  padding:5px 11px;
   cursor:pointer;
   font-family:'Courier New',monospace;
   min-width:52px; text-align:center;
@@ -236,21 +204,19 @@ canvas { display:block }
   color:var(--col);
 }
 
-/* color swatches */
+/* Color swatches */
 .color-row { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:9px }
 .sw {
   width:28px; height:28px;
-  border-radius:2px;
-  border:2px solid transparent;
-  cursor:pointer;
-  flex-shrink:0;
+  border-radius:2px; border:2px solid transparent;
+  cursor:pointer; flex-shrink:0;
 }
 .sw.on { border-color:#fff }
 
-/* sliders */
+/* Sliders */
 .sgrp { margin-bottom:12px }
 .shd  { display:flex; justify-content:space-between; margin-bottom:5px }
-.snm  { font-size:11px; color:rgba(255,255,255,0.50) }
+.snm  { font-size:11px; color:rgba(255,255,255,0.45) }
 .svl  { font-size:11px; color:var(--col); min-width:40px; text-align:right }
 
 input[type=range] {
@@ -263,28 +229,36 @@ input[type=range] {
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance:none;
   width:14px; height:14px;
-  background:var(--col);
-  border-radius:2px;
+  background:var(--col); border-radius:2px;
 }
 input[type=range]::-moz-range-thumb {
   width:14px; height:14px;
-  background:var(--col);
-  border-radius:2px; border:none;
+  background:var(--col); border-radius:2px; border:none;
 }
-
 input[type=color] {
   width:34px; height:28px;
   border:1px solid rgba(255,255,255,0.18);
-  border-radius:2px; padding:1px 1px;
-  background:#000; cursor:pointer;
+  border-radius:2px; padding:1px; background:#000; cursor:pointer;
 }
 
-/* ─────────────────────────────────────────────────
-   INSTRUCTION OVERLAY
-───────────────────────────────────────────────── */
+/* Reset button */
+.reset-btn {
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:2px;
+  color:rgba(255,255,255,0.40);
+  font-size:10px; letter-spacing:1px;
+  padding:4px 10px;
+  cursor:pointer;
+  font-family:'Courier New',monospace;
+  white-space:nowrap;
+}
+.reset-btn:active { background:rgba(255,255,255,0.08); color:var(--col) }
+
+/* ── Instruction overlay ── */
 #inst {
   position:fixed; inset:0;
-  background:rgba(0,0,0,0.95);
+  background:rgba(0,0,0,0.96);
   z-index:900;
   display:flex; flex-direction:column;
   align-items:center; justify-content:center;
@@ -293,42 +267,35 @@ input[type=color] {
 }
 #inst.fade { opacity:0; pointer-events:none }
 
-.i-ver   { font-size:8px; letter-spacing:4px; color:rgba(255,255,255,0.18); margin-bottom:28px }
-.i-icon  { font-size:56px; margin-bottom:16px; animation:sway 2.2s ease-in-out infinite }
+.i-ver  { font-size:8px; letter-spacing:4px; color:rgba(255,255,255,0.15); margin-bottom:26px }
+.i-icon { font-size:56px; margin-bottom:16px; animation:sway 2.2s ease-in-out infinite }
 @keyframes sway {
   0%,100%{ transform:translateY(0) }
   35%    { transform:translateY(-22px) }
   65%    { transform:translateY(14px) }
 }
-.i-head  { font-size:clamp(14px,3.2vmin,20px); color:var(--col); letter-spacing:3px; line-height:2.2; margin-bottom:8px }
-.i-note  { font-size:clamp(10px,2vmin,13px); color:rgba(255,255,255,0.28); letter-spacing:1px; line-height:1.9; margin-bottom:28px }
-.i-tap   { font-size:11px; color:rgba(255,255,255,0.22); letter-spacing:3px; animation:pls 1.7s ease-in-out infinite }
-@keyframes pls { 0%,100%{opacity:.22} 50%{opacity:.55} }
+.i-head { font-size:clamp(14px,3.2vmin,20px); color:var(--col); letter-spacing:3px; line-height:2.2; margin-bottom:8px }
+.i-note { font-size:clamp(10px,2vmin,13px); color:rgba(255,255,255,0.25); letter-spacing:1px; line-height:2.0; margin-bottom:28px }
+.i-tap  { font-size:11px; color:rgba(255,255,255,0.20); letter-spacing:3px; animation:pls 1.7s ease-in-out infinite }
+@keyframes pls { 0%,100%{opacity:.20} 50%{opacity:.50} }
 
-/* ─────────────────────────────────────────────────
-   STATUS BAR
-───────────────────────────────────────────────── */
+/* ── Status bar ── */
 #sbar {
   position:fixed; bottom:4px; left:6px;
   display:flex; align-items:center; gap:5px;
   pointer-events:none; z-index:4;
 }
-.sbar-v { font-size:8px; color:rgba(255,255,255,0.08); letter-spacing:1px }
-.dot {
-  width:5px; height:5px; border-radius:50%;
-  background:#1a1a1a; transition:background .5s;
-}
+.sbar-v { font-size:8px; color:rgba(255,255,255,0.07); letter-spacing:1px }
+.dot { width:5px; height:5px; border-radius:50%; background:#1a1a1a; transition:background .5s }
 .dot.ok  { background:#00ff88 }
 .dot.err { background:#ff3a3a }
 </style>
 </head>
 
-<!-- default portrait; JS will apply saved layout on load -->
 <body class="pt">
 
 <div id="dim-overlay"></div>
 
-<!-- ── HUD display area (may rotate for landscape) ── -->
 <div id="hud-root">
   <div id="hud-mirror">
     <div id="hud-ks">
@@ -341,19 +308,16 @@ input[type=color] {
   </div>
 </div>
 
-<!-- Corner brackets (viewport-fixed) -->
 <div class="bkt bkt-tl"></div>
 <div class="bkt bkt-tr"></div>
 <div class="bkt bkt-bl"></div>
 <div class="bkt bkt-br"></div>
 
-<!-- Menu button -->
 <button id="mbtn" aria-label="設定">⋮</button>
 
-<!-- Menu popup -->
 <div id="mpop">
   <div class="m-hd">
-    <span>HUD SETTINGS v0.1.0</span>
+    <span>HUD SETTINGS v0.1.1</span>
     <button class="m-close" id="mclose">✕</button>
   </div>
 
@@ -421,57 +385,58 @@ input[type=color] {
       </div>
       <input type="range" id="ksh" min="-28" max="28" value="0" step="1">
     </div>
-    <div class="sgrp" style="margin-bottom:0">
+    <div class="sgrp">
       <div class="shd">
         <span class="snm">上下歪み (V)</span>
         <span class="svl" id="ksv-v">0°</span>
       </div>
       <input type="range" id="ksv" min="-28" max="28" value="0" step="1">
     </div>
+    <div class="m-row" style="margin-bottom:0">
+      <span class="m-lbl">台形補正をリセット</span>
+      <button class="reset-btn" id="btn-ks-reset">RESET</button>
+    </div>
   </div>
 </div>
 
 <!-- Instruction overlay -->
 <div id="inst">
-  <div class="i-ver">HUD v0.1.0 — CAR HEAD-UP DISPLAY</div>
+  <div class="i-ver">HUD v0.1.1 — CAR HEAD-UP DISPLAY</div>
   <div class="i-icon">☝️</div>
   <div class="i-head">
     スワイプ ↑ で明るく<br>
     スワイプ ↓ で暗く
   </div>
   <div class="i-note">
-    画面の最大輝度はスマホ本体の<br>
-    画面設定から最大にしてください<br>
+    画面の輝度は本体の画面設定から最大に<br>
+    してください<br>
     <br>
-    ⋮ メニューからカラーや向きを変更できます
+    ⋮ メニューからカラー・向きを変更できます
   </div>
   <div class="i-tap">タップして開始 ▶</div>
 </div>
 
-<!-- Status bar -->
 <div id="sbar">
-  <span class="sbar-v">HUD v0.1.0</span>
+  <span class="sbar-v">HUD v0.1.1</span>
   <div class="dot" id="dot-gps" title="GPS"></div>
   <div class="dot" id="dot-cmp" title="Compass"></div>
 </div>
 
 <script>
 'use strict';
-// ════════════════════════════════════════════════════════
-//  PERSISTENT SETTINGS
-// ════════════════════════════════════════════════════════
-const SKEY = 'hud-v010';
-
+// ═══════════════════════════════════════════════════════
+//  PERSISTENT STATE
+// ═══════════════════════════════════════════════════════
+const SKEY = 'hud-v011';
 const ST = {
-  // live (not saved)
   speed:   0,
   heading: 0,
   gpsOk:   false,
   cmpOk:   false,
-  // saved
+  // ── saved ──
   color: '#00ffff',
   dim:   0,
-  ls:    false,   // false = portrait, true = landscape
+  ls:    false,
   mH:    false,
   mV:    false,
   ksH:   0,
@@ -482,16 +447,15 @@ function loadST() {
   try {
     const s = JSON.parse(localStorage.getItem(SKEY) || 'null');
     if (!s) return;
-    if (typeof s.color === 'string') ST.color = s.color;
-    if (typeof s.dim   === 'number') ST.dim   = s.dim;
-    if (typeof s.ls    === 'boolean') ST.ls   = s.ls;
-    if (typeof s.mH    === 'boolean') ST.mH   = s.mH;
-    if (typeof s.mV    === 'boolean') ST.mV   = s.mV;
-    if (typeof s.ksH   === 'number') ST.ksH   = s.ksH;
-    if (typeof s.ksV   === 'number') ST.ksV   = s.ksV;
+    if (typeof s.color === 'string')  ST.color = s.color;
+    if (typeof s.dim   === 'number')  ST.dim   = s.dim;
+    if (typeof s.ls    === 'boolean') ST.ls    = s.ls;
+    if (typeof s.mH    === 'boolean') ST.mH    = s.mH;
+    if (typeof s.mV    === 'boolean') ST.mV    = s.mV;
+    if (typeof s.ksH   === 'number')  ST.ksH   = s.ksH;
+    if (typeof s.ksV   === 'number')  ST.ksV   = s.ksV;
   } catch(_) {}
 }
-
 function saveST() {
   try {
     localStorage.setItem(SKEY, JSON.stringify({
@@ -501,24 +465,25 @@ function saveST() {
   } catch(_) {}
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  COLOR HELPERS
-// ════════════════════════════════════════════════════════
-function rgba(hex, a) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return `rgba(${r},${g},${b},${a})`;
+// ═══════════════════════════════════════════════════════
+function hexToRgb(hex) {
+  return [
+    parseInt(hex.slice(1,3),16),
+    parseInt(hex.slice(3,5),16),
+    parseInt(hex.slice(5,7),16),
+  ];
 }
-
 function setCSSColor(hex) {
-  document.documentElement.style.setProperty('--col',    hex);
-  document.documentElement.style.setProperty('--col-bd', rgba(hex, 0.15));
+  const [r,g,b] = hexToRgb(hex);
+  document.documentElement.style.setProperty('--col', hex);
+  document.documentElement.style.setProperty('--col-bd', `rgba(${r},${g},${b},0.20)`);
 }
 
-// ════════════════════════════════════════════════════════
-//  7-SEGMENT — flat, no shadowBlur
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  7-SEGMENT — flat, full brightness, NO inactive segs
+// ═══════════════════════════════════════════════════════
 const SEG = {
   '0':[1,1,1,1,1,1,0],'1':[0,1,1,0,0,0,0],
   '2':[1,1,0,1,1,0,1],'3':[1,1,1,1,0,0,1],
@@ -528,61 +493,90 @@ const SEG = {
   '-':[0,0,0,0,0,0,1],' ':[0,0,0,0,0,0,0],
 };
 
-function drawDigit(ctx, x, y, w, h, ch, col, dim) {
+function drawDigit(ctx, x, y, w, h, ch, col) {
   const s  = SEG[ch] ?? SEG[' '];
-  const sw = Math.max(2, w * 0.10);
-  const g  = sw * 0.58;
-  const r  = sw * 0.44;
+  // thicker strokes for visibility
+  const sw = Math.max(3, w * 0.13);
+  const g  = sw * 0.55;
+  const r  = sw * 0.46;
   const my = y + h * 0.5;
-  ctx.lineCap   = 'round';
-  ctx.shadowBlur = 0;
+
+  ctx.lineCap    = 'round';
+  ctx.lineJoin   = 'round';
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = sw;
+  ctx.shadowBlur  = 0;
+
   const seg = (on, x1,y1,x2,y2) => {
-    ctx.strokeStyle = on ? col : dim;
-    ctx.lineWidth   = sw;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    if (!on) return;   // ← skip OFF segments entirely
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
   };
-  seg(s[0], x+g+r,  y+r,     x+w-g-r, y+r);
-  seg(s[1], x+w-r,  y+g+r,   x+w-r,   my-g);
-  seg(s[2], x+w-r,  my+g,    x+w-r,   y+h-g-r);
-  seg(s[3], x+g+r,  y+h-r,   x+w-g-r, y+h-r);
-  seg(s[4], x+r,    my+g,    x+r,     y+h-g-r);
-  seg(s[5], x+r,    y+g+r,   x+r,     my-g);
-  seg(s[6], x+g+r,  my,      x+w-g-r, my);
+  seg(s[0], x+g+r,  y+r,     x+w-g-r, y+r    );  // top
+  seg(s[1], x+w-r,  y+g+r,   x+w-r,   my-g   );  // top-right
+  seg(s[2], x+w-r,  my+g,    x+w-r,   y+h-g-r);  // bot-right
+  seg(s[3], x+g+r,  y+h-r,   x+w-g-r, y+h-r  );  // bottom
+  seg(s[4], x+r,    my+g,    x+r,     y+h-g-r);  // bot-left
+  seg(s[5], x+r,    y+g+r,   x+r,     my-g   );  // top-left
+  seg(s[6], x+g+r,  my,      x+w-g-r, my     );  // middle
 }
 
 function drawColon(ctx, x, y, w, h, col) {
-  const r = Math.max(2.5, w * 0.12);
+  const r = Math.max(3, w * 0.14);
   ctx.fillStyle  = col;
   ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(x+w/2, y+h*.33, r, 0, Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(x+w/2, y+h*.67, r, 0, Math.PI*2); ctx.fill();
 }
 
+// Measure pixel width of a digit string
 function measureStr(str, dW) {
   const cW = dW*0.38, sp = dW*0.10;
-  return str.split('').reduce((acc, ch, i) =>
-    acc + (ch===':'?cW:dW) + (i<str.length-1?sp:0), 0);
+  let total = 0;
+  for (let i=0; i<str.length; i++) {
+    total += str[i]===':'? cW : dW;
+    if (i < str.length-1) total += sp;
+  }
+  return total;
 }
 
-function drawStr(ctx, str, x, y, dW, dH, col, dim) {
+// Compute digit width that fits both W (max) and H (max)
+// Returns {dW, dH} scaled to fit in (maxW × maxH)
+function fitStr(str, maxW, maxH, aspect /* dH/dW ratio */) {
+  // start with height constraint
+  let dH = maxH;
+  let dW = dH / aspect;
+  // check width
+  const tw = measureStr(str, dW);
+  if (tw > maxW) {
+    const scale = maxW / tw;
+    dW *= scale;
+    dH *= scale;
+  }
+  return { dW, dH };
+}
+
+function drawStr(ctx, str, x, y, dW, dH, col) {
   const cW = dW*0.38, sp = dW*0.10;
   let cx = x;
   for (const ch of str) {
     if (ch===':') { drawColon(ctx,cx,y,cW,dH,col); cx+=cW+sp; }
-    else           { drawDigit(ctx,cx,y,dW,dH,ch,col,dim); cx+=dW+sp; }
+    else           { drawDigit(ctx,cx,y,dW,dH,ch,col); cx+=dW+sp; }
   }
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  CANVAS REFS
-// ════════════════════════════════════════════════════════
-const csvSpd=document.getElementById('cvs-spd'), ctxSpd=csvSpd.getContext('2d');
-const csvClk=document.getElementById('cvs-clk'), ctxClk=csvClk.getContext('2d');
-const csvCmp=document.getElementById('cvs-cmp'), ctxCmp=csvCmp.getContext('2d');
+// ═══════════════════════════════════════════════════════
+const csvSpd=document.getElementById('cvs-spd'); const ctxSpd=csvSpd.getContext('2d');
+const csvClk=document.getElementById('cvs-clk'); const ctxClk=csvClk.getContext('2d');
+const csvCmp=document.getElementById('cvs-cmp'); const ctxCmp=csvCmp.getContext('2d');
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  DRAW — SPEED
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 function drawSpeed() {
   const el=document.getElementById('s-spd');
   const W=el.clientWidth, H=el.clientHeight;
@@ -590,36 +584,33 @@ function drawSpeed() {
   csvSpd.width=W; csvSpd.height=H;
   ctxSpd.clearRect(0,0,W,H);
 
-  const COL=ST.color, DIM=rgba(COL,0.07);
+  const COL = ST.color;
 
-  // bottom: large km/h label
-  const uFsz = Math.max(14, H*0.115);
-  const uH   = uFsz*1.7;
+  // km/h label at bottom — bold, sized for visibility
+  const uFsz = Math.max(13, H * 0.10);
+  const uH   = uFsz * 1.8;  // reserved height for unit
 
-  // digits fill remaining space
-  const avail = H - uH;
-  let dW = (W*0.86) / (3 + 2*0.10);
-  let dH = dW * 1.9;
-  if (dH > avail*0.90) { dH=avail*0.90; dW=dH/1.9; }
+  // digits fill remaining height, also constrained by width
+  const str   = ST.gpsOk ? String(Math.round(ST.speed)).padStart(3,' ') : '---';
+  const avH   = H - uH - H*0.02;
+  const avW   = W * 0.92;
+  const { dW, dH } = fitStr(str, avW, avH * 0.92, 1.9);
 
-  const str = ST.gpsOk ? String(Math.round(ST.speed)).padStart(3,' ') : '---';
-  const tw  = measureStr(str, dW);
-  const sX  = (W-tw)/2;
-  const sY  = (avail-dH)/2;
-  drawStr(ctxSpd, str, sX, sY, dW, dH, COL, DIM);
+  const tw = measureStr(str, dW);
+  drawStr(ctxSpd, str, (W-tw)/2, (avH-dH)/2, dW, dH, COL);
 
-  // km/h — flat bold text, large for visibility
+  // km/h — bold
   ctxSpd.fillStyle    = COL;
   ctxSpd.font         = `bold ${uFsz}px 'Courier New',monospace`;
   ctxSpd.textAlign    = 'center';
   ctxSpd.textBaseline = 'bottom';
   ctxSpd.shadowBlur   = 0;
-  ctxSpd.fillText('km/h', W/2, H - H*0.012);
+  ctxSpd.fillText('km/h', W/2, H - H*0.01);
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  DRAW — CLOCK
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 function drawClock() {
   const el=document.getElementById('s-clk');
   const W=el.clientWidth, H=el.clientHeight;
@@ -627,26 +618,39 @@ function drawClock() {
   csvClk.width=W; csvClk.height=H;
   ctxClk.clearRect(0,0,W,H);
 
-  const COL=ST.color, DIM=rgba(COL,0.07);
-  const now=new Date();
-  const hh=String(now.getHours()).padStart(2,'0');
-  const mm=String(now.getMinutes()).padStart(2,'0');
-  const ss=String(now.getSeconds()).padStart(2,'0');
+  const COL = ST.color;
+  const now = new Date();
+  const hh  = String(now.getHours()).padStart(2,'0');
+  const mm  = String(now.getMinutes()).padStart(2,'0');
+  const ss  = String(now.getSeconds()).padStart(2,'0');
+  const hmS = `${hh}:${mm}`;
 
-  // HH:MM — upper 56%
-  const hmH=H*0.54, hmW=hmH/1.9;
-  const hmS=`${hh}:${mm}`;
-  drawStr(ctxClk, hmS, (W-measureStr(hmS,hmW))/2, H*0.04, hmW, hmH, COL, DIM);
+  // vertical split: HH:MM ~58%, gap ~6%, SS ~28%, rest padding
+  const hmMaxH = H * 0.56;
+  const ssMaxH = H * 0.26;
+  const hmMaxW = W * 0.90;
+  const ssMaxW = W * 0.90;
 
-  // SS — 27%
-  const ssH=H*0.27, ssW=ssH/1.9;
-  drawStr(ctxClk, ss, (W-measureStr(ss,ssW))/2, H*0.04+hmH+H*0.05, ssW, ssH, COL, DIM);
+  // fit HH:MM
+  const hm = fitStr(hmS, hmMaxW, hmMaxH, 1.9);
+  const tw1 = measureStr(hmS, hm.dW);
+  const hmY = H * 0.03;
+  drawStr(ctxClk, hmS, (W-tw1)/2, hmY, hm.dW, hm.dH, COL);
+
+  // fit SS
+  const ss2 = fitStr(ss, ssMaxW, ssMaxH, 1.9);
+  const tw2  = measureStr(ss, ss2.dW);
+  const ssY  = hmY + hm.dH + H * 0.06;
+  drawStr(ctxClk, ss, (W-tw2)/2, ssY, ss2.dW, ss2.dH, COL);
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  DRAW — COMPASS
-// ════════════════════════════════════════════════════════
-const CARD={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
+//  In landscape mode, the physical device is rotated –90°
+//  relative to the displayed content, so compass heading
+//  needs +90° correction to match visual orientation.
+// ═══════════════════════════════════════════════════════
+const CARD = {0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
 
 function drawCompass() {
   const el=document.getElementById('s-cmp');
@@ -655,311 +659,332 @@ function drawCompass() {
   csvCmp.width=W; csvCmp.height=H;
   ctxCmp.clearRect(0,0,W,H);
 
-  const COL=ST.color, hdg=ST.heading;
-  const tB=H*0.68;          // tape base Y
-  const VIS=100;             // visible degrees
-  const ppd=W/VIS;           // pixels per degree
+  const COL = ST.color;
+  // Landscape correction: UI rotated –90°, so compass heading += 90
+  const hdg = ST.ls
+    ? ((ST.heading + 90) % 360 + 360) % 360
+    : ST.heading;
 
-  // base line
-  ctxCmp.strokeStyle=rgba(COL,0.20); ctxCmp.lineWidth=1;
+  const tB  = H * 0.66;   // tape base Y
+  const VIS = 100;          // visible degrees window
+  const ppd = W / VIS;
+
+  // base line — full brightness
+  ctxCmp.strokeStyle = COL;
+  ctxCmp.globalAlpha = 0.25;
+  ctxCmp.lineWidth   = 1;
   ctxCmp.beginPath(); ctxCmp.moveTo(0,tB); ctxCmp.lineTo(W,tB); ctxCmp.stroke();
+  ctxCmp.globalAlpha = 1;
 
-  // ticks & labels
-  for (let d=Math.floor(hdg-VIS/2-5); d<=Math.ceil(hdg+VIS/2+5); d++) {
-    if (d%5!==0) continue;
-    const nd=((d%360)+360)%360;
-    const px=W/2+(d-hdg)*ppd;
-    if (px<-12||px>W+12) continue;
+  // ticks + labels — all at full COL, vary alpha only slightly
+  for (let d = Math.floor(hdg-VIS/2-5); d <= Math.ceil(hdg+VIS/2+5); d++) {
+    if (d % 5 !== 0) continue;
+    const nd = ((d % 360) + 360) % 360;
+    const px = W/2 + (d - hdg) * ppd;
+    if (px < -12 || px > W+12) continue;
 
-    const isCard=nd%45===0, isMaj=nd%10===0;
-    const tH=isCard?tB*0.60:isMaj?tB*0.36:tB*0.18;
+    const isCard = nd % 45 === 0;
+    const isMaj  = nd % 10 === 0;
+    const tH     = isCard ? tB*0.62 : isMaj ? tB*0.38 : tB*0.20;
 
-    ctxCmp.strokeStyle=isCard?COL:isMaj?rgba(COL,.55):rgba(COL,.20);
-    ctxCmp.lineWidth  =isCard?2:1;
-    ctxCmp.shadowBlur =0;
+    ctxCmp.strokeStyle = COL;
+    ctxCmp.lineWidth   = isCard ? 2.5 : 1.5;
+    ctxCmp.globalAlpha = isCard ? 1.0 : isMaj ? 0.65 : 0.30;
+    ctxCmp.shadowBlur  = 0;
     ctxCmp.beginPath(); ctxCmp.moveTo(px,tB); ctxCmp.lineTo(px,tB-tH); ctxCmp.stroke();
+    ctxCmp.globalAlpha = 1;
 
     if (isMaj) {
-      const lbl=CARD[nd]??String(nd);
-      const fSz=isCard?H*0.165:H*0.125;
-      ctxCmp.fillStyle    =isCard?COL:rgba(COL,.42);
-      ctxCmp.font         =`${isCard?'bold ':''}${fSz}px 'Courier New',monospace`;
-      ctxCmp.textAlign    ='center';
-      ctxCmp.textBaseline ='bottom';
-      ctxCmp.fillText(lbl, px, tB-tH-2);
+      const lbl  = CARD[nd] ?? String(nd);
+      const fSz  = isCard ? H * 0.175 : H * 0.130;
+      ctxCmp.fillStyle    = COL;
+      // bold font for all labels
+      ctxCmp.font         = `bold ${fSz}px 'Courier New',monospace`;
+      ctxCmp.textAlign    = 'center';
+      ctxCmp.textBaseline = 'bottom';
+      ctxCmp.globalAlpha  = isCard ? 1.0 : 0.65;
+      ctxCmp.shadowBlur   = 0;
+      ctxCmp.fillText(lbl, px, tB - tH - 2);
+      ctxCmp.globalAlpha = 1;
     }
   }
 
-  // centre indicator (▼ + vertical line)
-  const triH=tB*0.20, triW=triH*0.85;
-  ctxCmp.fillStyle=COL; ctxCmp.shadowBlur=0;
+  // centre indicator ▼
+  const triH = tB * 0.22, triW = triH * 0.85;
+  ctxCmp.fillStyle   = COL;
+  ctxCmp.shadowBlur  = 0;
+  ctxCmp.globalAlpha = 1;
   ctxCmp.beginPath();
-  ctxCmp.moveTo(W/2,         tB+2);
-  ctxCmp.lineTo(W/2-triW/2,  tB-triH+2);
-  ctxCmp.lineTo(W/2+triW/2,  tB-triH+2);
+  ctxCmp.moveTo(W/2,          tB + 2);
+  ctxCmp.lineTo(W/2 - triW/2, tB - triH + 2);
+  ctxCmp.lineTo(W/2 + triW/2, tB - triH + 2);
   ctxCmp.closePath(); ctxCmp.fill();
 
-  ctxCmp.strokeStyle=COL; ctxCmp.lineWidth=1.5;
+  ctxCmp.strokeStyle = COL;
+  ctxCmp.lineWidth   = 2;
   ctxCmp.beginPath();
-  ctxCmp.moveTo(W/2, tB-triH);
-  ctxCmp.lineTo(W/2, tB-tB*0.65);
+  ctxCmp.moveTo(W/2, tB - triH);
+  ctxCmp.lineTo(W/2, tB - tB*0.64);
   ctxCmp.stroke();
 
   // edge fades
-  const fw=W*0.10;
-  const gL=ctxCmp.createLinearGradient(0,0,fw,0);
+  const fw = W * 0.08;
+  const gL = ctxCmp.createLinearGradient(0,0,fw,0);
   gL.addColorStop(0,'rgba(0,0,0,1)'); gL.addColorStop(1,'rgba(0,0,0,0)');
-  const gR=ctxCmp.createLinearGradient(W-fw,0,W,0);
+  const gR = ctxCmp.createLinearGradient(W-fw,0,W,0);
   gR.addColorStop(0,'rgba(0,0,0,0)'); gR.addColorStop(1,'rgba(0,0,0,1)');
   ctxCmp.fillStyle=gL; ctxCmp.fillRect(0,0,fw,tB+4);
   ctxCmp.fillStyle=gR; ctxCmp.fillRect(W-fw,0,fw,tB+4);
 
-  // heading readout (°)
-  const hdgFsz=Math.min((H-tB)*0.78, H*0.20);
-  ctxCmp.fillStyle    =COL;
-  ctxCmp.font         =`bold ${hdgFsz}px 'Courier New',monospace`;
-  ctxCmp.textAlign    ='center';
-  ctxCmp.textBaseline ='top';
-  ctxCmp.shadowBlur   =0;
-  ctxCmp.fillText(String(Math.round(hdg)).padStart(3,'0')+'°', W/2, tB+3);
+  // heading readout
+  const hdgStr  = String(Math.round(hdg)).padStart(3,'0') + '°';
+  const hdgFsz  = Math.min((H - tB) * 0.80, H * 0.22);
+  ctxCmp.fillStyle    = COL;
+  ctxCmp.font         = `bold ${hdgFsz}px 'Courier New',monospace`;
+  ctxCmp.textAlign    = 'center';
+  ctxCmp.textBaseline = 'top';
+  ctxCmp.shadowBlur   = 0;
+  ctxCmp.globalAlpha  = 1;
+  ctxCmp.fillText(hdgStr, W/2, tB + 3);
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  ANIMATION LOOP
-// ════════════════════════════════════════════════════════
-let _lastSec=-1;
+// ═══════════════════════════════════════════════════════
+let _lastSec = -1;
 function loop() {
-  const sec=new Date().getSeconds();
+  const sec = new Date().getSeconds();
   drawSpeed();
   drawCompass();
-  if (sec!==_lastSec) { _lastSec=sec; drawClock(); }
-
+  if (sec !== _lastSec) { _lastSec = sec; drawClock(); }
   document.getElementById('dot-gps').className='dot '+(ST.gpsOk?'ok':'err');
   document.getElementById('dot-cmp').className='dot '+(ST.cmpOk?'ok':'');
-
   requestAnimationFrame(loop);
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  GPS
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 function startGPS() {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
-    p => { ST.gpsOk=true; ST.speed=p.coords.speed!=null?p.coords.speed*3.6:0; },
+    p => { ST.gpsOk=true; ST.speed = p.coords.speed!=null ? p.coords.speed*3.6 : 0; },
     ()=> { ST.gpsOk=false; },
-    {enableHighAccuracy:true, maximumAge:1000, timeout:15000}
+    { enableHighAccuracy:true, maximumAge:1000, timeout:15000 }
   );
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  COMPASS
-// ════════════════════════════════════════════════════════
-let _cf=null;
+// ═══════════════════════════════════════════════════════
+let _cf = null;
 function onOrient(e) {
-  let raw=null;
-  if (typeof e.webkitCompassHeading==='number'&&!isNaN(e.webkitCompassHeading)) {
-    raw=e.webkitCompassHeading;
-  } else if (e.alpha!=null) {
-    raw=((360-e.alpha)%360+360)%360;
+  let raw = null;
+  if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) {
+    raw = e.webkitCompassHeading;
+  } else if (e.alpha != null) {
+    raw = ((360 - e.alpha) % 360 + 360) % 360;
   }
-  if (raw==null) return;
-  ST.cmpOk=true;
-  if (_cf==null) { _cf=raw; }
+  if (raw == null) return;
+  ST.cmpOk = true;
+  if (_cf == null) { _cf = raw; }
   else {
-    let d=raw-_cf;
-    if (d>180)d-=360; if(d<-180)d+=360;
-    _cf=((_cf+d*0.18)+360)%360;
+    let d = raw - _cf;
+    if (d > 180) d -= 360; if (d < -180) d += 360;
+    _cf = ((_cf + d * 0.18) + 360) % 360;
   }
-  ST.heading=_cf;
+  ST.heading = _cf;
 }
 function startCompass() {
-  if (typeof DeviceOrientationEvent==='undefined') return;
-  const attach=()=>{
+  if (typeof DeviceOrientationEvent === 'undefined') return;
+  const attach = () => {
     window.addEventListener('deviceorientationabsolute', onOrient, true);
     window.addEventListener('deviceorientation',         onOrient, true);
   };
-  if (typeof DeviceOrientationEvent.requestPermission==='function') {
-    DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')attach();}).catch(()=>{});
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(r => { if (r==='granted') attach(); })
+      .catch(()=>{});
   } else { attach(); }
 }
 
-// ════════════════════════════════════════════════════════
-//  WAKE LOCK (keeps screen on; brightness = use OS setting)
-// ════════════════════════════════════════════════════════
-let _wl=null;
+// ═══════════════════════════════════════════════════════
+//  WAKE LOCK
+// ═══════════════════════════════════════════════════════
+let _wl = null;
 async function requestWakeLock() {
   try {
-    if ('wakeLock' in navigator) _wl=await navigator.wakeLock.request('screen');
+    if ('wakeLock' in navigator) _wl = await navigator.wakeLock.request('screen');
   } catch(_) {}
 }
-document.addEventListener('visibilitychange', ()=>{
-  if (document.visibilityState==='visible'&&!_wl) requestWakeLock();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !_wl) requestWakeLock();
 });
 
-// ════════════════════════════════════════════════════════
-//  BRIGHTNESS (dim overlay)
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  BRIGHTNESS
+// ═══════════════════════════════════════════════════════
 function setDim(v) {
-  ST.dim=Math.max(0,Math.min(0.94,v));
-  document.documentElement.style.setProperty('--dim',ST.dim);
-  const pct=Math.round((1-ST.dim)*100);
-  document.getElementById('dim-val').textContent=pct+'%';
-  document.getElementById('dim-slider').value=Math.round(ST.dim*100);
+  ST.dim = Math.max(0, Math.min(0.94, v));
+  document.documentElement.style.setProperty('--dim', ST.dim);
+  const pct = Math.round((1 - ST.dim) * 100);
+  document.getElementById('dim-val').textContent = pct + '%';
+  document.getElementById('dim-slider').value = Math.round(ST.dim * 100);
   saveST();
 }
 
 let _ty0=null, _td0=null;
-document.addEventListener('touchstart', e=>{
-  if (e.target.closest('#mpop')||e.target.closest('#inst')) return;
-  _ty0=e.touches[0].clientY; _td0=ST.dim;
-},{passive:true});
-document.addEventListener('touchmove', e=>{
-  if (_ty0==null||e.target.closest('#mpop')) return;
-  setDim(_td0+(e.touches[0].clientY-_ty0)/window.innerHeight*1.25);
-},{passive:true});
-document.addEventListener('touchend', ()=>{_ty0=null;},{passive:true});
+document.addEventListener('touchstart', e => {
+  if (e.target.closest('#mpop') || e.target.closest('#inst')) return;
+  _ty0 = e.touches[0].clientY; _td0 = ST.dim;
+}, {passive:true});
+document.addEventListener('touchmove', e => {
+  if (_ty0==null || e.target.closest('#mpop')) return;
+  setDim(_td0 + (e.touches[0].clientY - _ty0) / window.innerHeight * 1.25);
+}, {passive:true});
+document.addEventListener('touchend', () => { _ty0=null; }, {passive:true});
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  INSTRUCTION OVERLAY
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 document.getElementById('inst').addEventListener('click', function() {
   this.classList.add('fade');
-  setTimeout(()=>{this.style.display='none';},680);
+  setTimeout(()=>{ this.style.display='none'; }, 680);
   startGPS();
   startCompass();
   requestWakeLock();
 });
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  MENU
-// ════════════════════════════════════════════════════════
-let _mOpen=false;
-document.getElementById('mbtn').addEventListener('click', e=>{
+// ═══════════════════════════════════════════════════════
+let _mOpen = false;
+document.getElementById('mbtn').addEventListener('click', e => {
   e.stopPropagation();
-  _mOpen=!_mOpen;
-  document.getElementById('mpop').classList.toggle('open',_mOpen);
+  _mOpen = !_mOpen;
+  document.getElementById('mpop').classList.toggle('open', _mOpen);
 });
 document.getElementById('mclose').addEventListener('click', closeMenu);
-document.addEventListener('click', e=>{
-  if (_mOpen&&!e.target.closest('#mpop')&&!e.target.closest('#mbtn')) closeMenu();
+document.addEventListener('click', e => {
+  if (_mOpen && !e.target.closest('#mpop') && !e.target.closest('#mbtn')) closeMenu();
 });
-function closeMenu(){_mOpen=false;document.getElementById('mpop').classList.remove('open');}
+function closeMenu() { _mOpen=false; document.getElementById('mpop').classList.remove('open'); }
 
 // ─── Color ────────────────────────────────────────────
 function applyColor(hex) {
-  ST.color=hex;
+  ST.color = hex;
   setCSSColor(hex);
-  document.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s.dataset.c===hex));
-  document.getElementById('color-pick').value=hex;
+  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', s.dataset.c===hex));
+  document.getElementById('color-pick').value = hex;
   saveST();
 }
-document.querySelectorAll('.sw').forEach(b=>b.addEventListener('click',()=>applyColor(b.dataset.c)));
-document.getElementById('color-pick').addEventListener('input',function(){applyColor(this.value);});
+document.querySelectorAll('.sw').forEach(b => b.addEventListener('click', ()=>applyColor(b.dataset.c)));
+document.getElementById('color-pick').addEventListener('input', function() { applyColor(this.value); });
 
 // ─── Brightness slider ────────────────────────────────
-document.getElementById('dim-slider').addEventListener('input',function(){
+document.getElementById('dim-slider').addEventListener('input', function() {
   setDim(parseFloat(this.value)/100);
 });
 
 // ─── Orientation ─────────────────────────────────────
 function setLayout(ls) {
-  ST.ls=ls;
+  ST.ls = ls;
   document.body.classList.toggle('ls', ls);
   document.body.classList.toggle('pt',!ls);
   document.getElementById('btn-ls').classList.toggle('on', ls);
   document.getElementById('btn-pt').classList.toggle('on',!ls);
   saveST();
 }
-document.getElementById('btn-pt').addEventListener('click',()=>setLayout(false));
-document.getElementById('btn-ls').addEventListener('click',()=>setLayout(true));
+document.getElementById('btn-pt').addEventListener('click', ()=>setLayout(false));
+document.getElementById('btn-ls').addEventListener('click', ()=>setLayout(true));
 
 // ─── Mirror ───────────────────────────────────────────
 function applyXform() {
-  document.getElementById('hud-mirror').style.transform=
+  document.getElementById('hud-mirror').style.transform =
     `scale(${ST.mH?-1:1},${ST.mV?-1:1})`;
-  document.getElementById('hud-ks').style.transform=
-    (ST.ksH===0&&ST.ksV===0)?'none'
-    :`perspective(900px) rotateY(${ST.ksH}deg) rotateX(${ST.ksV}deg)`;
+  document.getElementById('hud-ks').style.transform =
+    (ST.ksH===0 && ST.ksV===0) ? 'none'
+    : `perspective(900px) rotateY(${ST.ksH}deg) rotateX(${ST.ksV}deg)`;
 }
-document.getElementById('btn-mh').addEventListener('click', function(){
-  ST.mH=!ST.mH;
-  this.textContent=ST.mH?'ON':'OFF';
-  this.classList.toggle('on',ST.mH);
+document.getElementById('btn-mh').addEventListener('click', function() {
+  ST.mH=!ST.mH; this.textContent=ST.mH?'ON':'OFF';
+  this.classList.toggle('on',ST.mH); applyXform(); saveST();
+});
+document.getElementById('btn-mv').addEventListener('click', function() {
+  ST.mV=!ST.mV; this.textContent=ST.mV?'ON':'OFF';
+  this.classList.toggle('on',ST.mV); applyXform(); saveST();
+});
+
+// ─── Keystone sliders ─────────────────────────────────
+document.getElementById('ksh').addEventListener('input', function() {
+  ST.ksH = parseFloat(this.value);
+  document.getElementById('ksh-v').textContent = this.value+'°';
   applyXform(); saveST();
 });
-document.getElementById('btn-mv').addEventListener('click', function(){
-  ST.mV=!ST.mV;
-  this.textContent=ST.mV?'ON':'OFF';
-  this.classList.toggle('on',ST.mV);
+document.getElementById('ksv').addEventListener('input', function() {
+  ST.ksV = parseFloat(this.value);
+  document.getElementById('ksv-v').textContent = this.value+'°';
   applyXform(); saveST();
 });
 
-// ─── Keystone ─────────────────────────────────────────
-document.getElementById('ksh').addEventListener('input',function(){
-  ST.ksH=parseFloat(this.value);
-  document.getElementById('ksh-v').textContent=this.value+'°';
-  applyXform(); saveST();
-});
-document.getElementById('ksv').addEventListener('input',function(){
-  ST.ksV=parseFloat(this.value);
-  document.getElementById('ksv-v').textContent=this.value+'°';
+// ─── Keystone RESET ──────────────────────────────────
+document.getElementById('btn-ks-reset').addEventListener('click', () => {
+  ST.ksH = 0; ST.ksV = 0;
+  document.getElementById('ksh').value = 0;
+  document.getElementById('ksv').value = 0;
+  document.getElementById('ksh-v').textContent = '0°';
+  document.getElementById('ksv-v').textContent = '0°';
   applyXform(); saveST();
 });
 
-// ════════════════════════════════════════════════════════
-//  APPLY ALL SAVED SETTINGS TO DOM
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  APPLY SAVED SETTINGS TO DOM
+// ═══════════════════════════════════════════════════════
 function applyAllToDOM() {
-  // color
   setCSSColor(ST.color);
-  document.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s.dataset.c===ST.color));
-  document.getElementById('color-pick').value=ST.color;
+  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', s.dataset.c===ST.color));
+  document.getElementById('color-pick').value = ST.color;
 
-  // dim
-  document.documentElement.style.setProperty('--dim',ST.dim);
-  document.getElementById('dim-slider').value=Math.round(ST.dim*100);
-  document.getElementById('dim-val').textContent=Math.round((1-ST.dim)*100)+'%';
+  document.documentElement.style.setProperty('--dim', ST.dim);
+  document.getElementById('dim-slider').value = Math.round(ST.dim*100);
+  document.getElementById('dim-val').textContent = Math.round((1-ST.dim)*100)+'%';
 
-  // layout
   document.body.classList.toggle('ls', ST.ls);
   document.body.classList.toggle('pt',!ST.ls);
   document.getElementById('btn-ls').classList.toggle('on', ST.ls);
   document.getElementById('btn-pt').classList.toggle('on',!ST.ls);
 
-  // mirror
-  document.getElementById('btn-mh').textContent=ST.mH?'ON':'OFF';
-  document.getElementById('btn-mh').classList.toggle('on',ST.mH);
-  document.getElementById('btn-mv').textContent=ST.mV?'ON':'OFF';
-  document.getElementById('btn-mv').classList.toggle('on',ST.mV);
+  document.getElementById('btn-mh').textContent = ST.mH?'ON':'OFF';
+  document.getElementById('btn-mh').classList.toggle('on', ST.mH);
+  document.getElementById('btn-mv').textContent = ST.mV?'ON':'OFF';
+  document.getElementById('btn-mv').classList.toggle('on', ST.mV);
 
-  // keystone
-  document.getElementById('ksh').value=ST.ksH;
-  document.getElementById('ksv').value=ST.ksV;
-  document.getElementById('ksh-v').textContent=ST.ksH+'°';
-  document.getElementById('ksv-v').textContent=ST.ksV+'°';
+  document.getElementById('ksh').value = ST.ksH;
+  document.getElementById('ksv').value = ST.ksV;
+  document.getElementById('ksh-v').textContent = ST.ksH+'°';
+  document.getElementById('ksv-v').textContent = ST.ksV+'°';
 
   applyXform();
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  RESIZE OBSERVER
-// ════════════════════════════════════════════════════════
-new ResizeObserver(()=>{drawSpeed();drawClock();drawCompass();})
+// ═══════════════════════════════════════════════════════
+new ResizeObserver(() => { drawSpeed(); drawClock(); drawCompass(); })
   .observe(document.getElementById('hud'));
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  SERVICE WORKER
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', ()=>{
+  window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('SW:',e));
   });
 }
 
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  BOOT
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 loadST();
 applyAllToDOM();
 loop();

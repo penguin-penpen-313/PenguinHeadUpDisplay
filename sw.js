@@ -1,4 +1,4 @@
-const CACHE  = 'hud-v0.1.0';
+const CACHE  = 'hud-v0.1.1';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -10,7 +10,6 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  // delete ALL old caches whose name != current CACHE
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
