@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>HUD v1.0.1</title>
+<title>HUD v1.0.2</title>
 <style>
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
 
@@ -263,7 +263,7 @@ input[type=color] {
 <!-- Menu popup -->
 <div id="mpop">
   <div class="m-hd">
-    <span>HUD SETTINGS v1.0.1</span>
+    <span>HUD SETTINGS v1.0.2</span>
     <button class="m-close" id="mclose">✕</button>
   </div>
 
@@ -342,7 +342,7 @@ input[type=color] {
 
 <!-- Instruction overlay -->
 <div id="inst">
-  <div class="i-ver">HUD v1.0.1 — CAR HEAD-UP DISPLAY</div>
+  <div class="i-ver">HUD v1.0.2 — CAR HEAD-UP DISPLAY</div>
   <div class="i-icon">☝️</div>
   <div class="i-head">
     スワイプ ↑ で明るく<br>
@@ -358,7 +358,7 @@ input[type=color] {
 </div>
 
 <div id="sbar">
-  <span class="sbar-v">HUD v1.0.1</span>
+  <span class="sbar-v">HUD v1.0.2</span>
   <div class="dot" id="dot-gps"></div>
   <div class="dot" id="dot-cmp"></div>
 </div>
@@ -496,19 +496,28 @@ function drawSpeed() {
   ctxSpd.clearRect(0,0,W,H);
 
   const COL=ST.color;
-  const uFsz=Math.max(13,H*0.10);
-  const uH=uFsz*1.8;
+  // km/h label size
+  const uFsz = Math.max(13, H * 0.10);
+  const uH   = uFsz * 1.3;   // actual rendered height of label
+  const gap  = H * 0.018;    // tight gap between digits and label
 
-  const str=ST.gpsOk?String(Math.round(ST.speed)).padStart(3,' '):'---';
-  const avH=H-uH-H*0.02;
-  const {dW,dH}=fitStr(str, W*0.90, avH*0.90, 1.9);
-  const tw=measureStr(str,dW);
-  drawStr(ctxSpd, str, (W-tw)/2, (avH-dH)/2, dW, dH, COL);
+  const str = ST.gpsOk ? String(Math.round(ST.speed)).padStart(3,' ') : '---';
+  // Fit digits into (full width) × (height minus label minus gap)
+  const {dW, dH} = fitStr(str, W * 0.90, (H - uH - gap) * 0.88, 1.9);
+  const tw = measureStr(str, dW);
 
-  ctxSpd.fillStyle=COL; ctxSpd.shadowBlur=0;
-  ctxSpd.font=`bold ${uFsz}px 'Courier New',monospace`;
-  ctxSpd.textAlign='center'; ctxSpd.textBaseline='bottom';
-  ctxSpd.fillText('km/h', W/2, H-H*0.01);
+  // Total group height, centered vertically
+  const groupH = dH + gap + uH;
+  const groupY = (H - groupH) / 2;
+
+  drawStr(ctxSpd, str, (W - tw) / 2, groupY, dW, dH, COL);
+
+  ctxSpd.fillStyle    = COL;
+  ctxSpd.shadowBlur   = 0;
+  ctxSpd.font         = `bold ${uFsz}px 'Courier New',monospace`;
+  ctxSpd.textAlign    = 'center';
+  ctxSpd.textBaseline = 'top';
+  ctxSpd.fillText('km/h', W / 2, groupY + dH + gap);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -553,71 +562,174 @@ function drawCompass() {
   if (ST.mV) corr+=180;
   const hdg=((ST.heading+corr)%360+360)%360;
 
-  const tB=H*0.66, VIS=100, ppd=W/VIS;
+  // ── Layout ──────────────────────────────────────────────────────────────
+  //  Portrait (ST.ls===false):
+  //    [heading °number] ← top zone
+  //    [tape: ticks + cardinal letters only, no numeric labels]
+  //    [▼ triangle below tape line]
+  //
+  //  Landscape (ST.ls===true):
+  //    [tape: ticks + all labels above]
+  //    [▼ triangle below tape line]
+  //    [heading °number] ← bottom zone
 
-  // base line
-  ctxCmp.strokeStyle=COL; ctxCmp.globalAlpha=0.22; ctxCmp.lineWidth=1;
-  ctxCmp.beginPath(); ctxCmp.moveTo(0,tB); ctxCmp.lineTo(W,tB); ctxCmp.stroke();
-  ctxCmp.globalAlpha=1;
+  const isLandscape = ST.ls;
+  const VIS = 100, ppd = W / VIS;
 
-  // ticks + labels
-  for (let d=Math.floor(hdg-VIS/2-5); d<=Math.ceil(hdg+VIS/2+5); d++) {
-    if (d%5!==0) continue;
-    const nd=((d%360)+360)%360;
-    const px=W/2+(d-hdg)*ppd;
-    if (px<-12||px>W+12) continue;
+  // Heading readout string
+  const hdgStr = String(Math.round(hdg)).padStart(3,'0') + '°';
 
-    const isCard=nd%45===0, isMaj=nd%10===0;
-    const tH=isCard?tB*0.62:isMaj?tB*0.38:tB*0.20;
+  if (!isLandscape) {
+    // ── PORTRAIT ────────────────────────────────────────────────────────
+    // Top zone: heading number
+    const hdgFsz  = Math.min(H * 0.26, 36);
+    const hdgZoneH = hdgFsz * 1.45;
 
-    ctxCmp.strokeStyle=COL;
-    ctxCmp.lineWidth  =isCard?2.5:1.5;
-    ctxCmp.globalAlpha=isCard?1.0:isMaj?0.60:0.25;
-    ctxCmp.shadowBlur =0;
-    ctxCmp.beginPath(); ctxCmp.moveTo(px,tB); ctxCmp.lineTo(px,tB-tH); ctxCmp.stroke();
+    // Remaining area split: tape(ticks+labels) + triangle-below
+    const remaining = H - hdgZoneH;
+    const triAreaH  = remaining * 0.30;   // space below tape for triangle
+    const tB        = H - triAreaH;       // tape base Y
+
+    // Tape: only cardinal/intercardinal labels (no numeric crowding)
+    const cardFsz = H * 0.140;
+
+    // Draw heading number at top
+    ctxCmp.fillStyle    = COL;
+    ctxCmp.font         = `bold ${hdgFsz}px 'Courier New',monospace`;
+    ctxCmp.textAlign    = 'center';
+    ctxCmp.textBaseline = 'middle';
+    ctxCmp.shadowBlur   = 0;
+    ctxCmp.fillText(hdgStr, W/2, hdgZoneH * 0.50);
+
+    // Thin separator line below heading
+    ctxCmp.strokeStyle = COL; ctxCmp.globalAlpha = 0.18; ctxCmp.lineWidth = 1;
+    ctxCmp.beginPath(); ctxCmp.moveTo(W*0.1, hdgZoneH); ctxCmp.lineTo(W*0.9, hdgZoneH); ctxCmp.stroke();
+    ctxCmp.globalAlpha = 1;
+
+    // Base line of tape
+    ctxCmp.strokeStyle = COL; ctxCmp.globalAlpha = 0.22; ctxCmp.lineWidth = 1;
+    ctxCmp.beginPath(); ctxCmp.moveTo(0, tB); ctxCmp.lineTo(W, tB); ctxCmp.stroke();
+    ctxCmp.globalAlpha = 1;
+
+    const tapeH = tB - hdgZoneH;   // height available for ticks above tape line
+
+    for (let d=Math.floor(hdg-VIS/2-5); d<=Math.ceil(hdg+VIS/2+5); d++) {
+      if (d%5!==0) continue;
+      const nd = ((d%360)+360)%360;
+      const px = W/2 + (d-hdg)*ppd;
+      if (px<-12||px>W+12) continue;
+
+      const isCard = nd%45===0;
+      const isMaj  = nd%10===0;
+      const tickH  = isCard ? tapeH*0.68 : isMaj ? tapeH*0.42 : tapeH*0.22;
+
+      ctxCmp.strokeStyle = COL;
+      ctxCmp.lineWidth   = isCard ? 2.5 : 1.5;
+      ctxCmp.globalAlpha = isCard ? 1.0 : isMaj ? 0.55 : 0.22;
+      ctxCmp.shadowBlur  = 0;
+      ctxCmp.beginPath(); ctxCmp.moveTo(px, tB); ctxCmp.lineTo(px, tB-tickH); ctxCmp.stroke();
+      ctxCmp.globalAlpha = 1;
+
+      // Portrait: ONLY show cardinal/intercardinal letter labels (N NE E …)
+      // Suppress all numeric labels to prevent crowding
+      if (isCard) {
+        const lbl = CARD[nd] ?? '';
+        ctxCmp.fillStyle    = COL;
+        ctxCmp.font         = `bold ${cardFsz}px 'Courier New',monospace`;
+        ctxCmp.textAlign    = 'center';
+        ctxCmp.textBaseline = 'bottom';
+        ctxCmp.shadowBlur   = 0;
+        ctxCmp.fillText(lbl, px, tB - tickH - 2);
+      }
+    }
+
+    // Centre ▼ triangle
+    const triH = triAreaH * 0.55, triW = triH * 0.85;
+    ctxCmp.fillStyle = COL; ctxCmp.shadowBlur = 0; ctxCmp.globalAlpha = 1;
+    ctxCmp.beginPath();
+    ctxCmp.moveTo(W/2,          tB + 2);
+    ctxCmp.lineTo(W/2 - triW/2, tB - triH + 2);
+    ctxCmp.lineTo(W/2 + triW/2, tB - triH + 2);
+    ctxCmp.closePath(); ctxCmp.fill();
+
+    ctxCmp.strokeStyle = COL; ctxCmp.lineWidth = 2;
+    ctxCmp.beginPath(); ctxCmp.moveTo(W/2, tB-triH); ctxCmp.lineTo(W/2, tB - tapeH*0.52); ctxCmp.stroke();
+
+    // Edge fades
+    const fw = W*0.08;
+    const gL = ctxCmp.createLinearGradient(0,0,fw,0);
+    gL.addColorStop(0,'rgba(0,0,0,1)'); gL.addColorStop(1,'rgba(0,0,0,0)');
+    const gR = ctxCmp.createLinearGradient(W-fw,0,W,0);
+    gR.addColorStop(0,'rgba(0,0,0,0)'); gR.addColorStop(1,'rgba(0,0,0,1)');
+    ctxCmp.fillStyle=gL; ctxCmp.fillRect(0, hdgZoneH, fw, tB - hdgZoneH + 4);
+    ctxCmp.fillStyle=gR; ctxCmp.fillRect(W-fw, hdgZoneH, fw, tB - hdgZoneH + 4);
+
+  } else {
+    // ── LANDSCAPE ───────────────────────────────────────────────────────
+    const tB = H * 0.66;
+
+    // Base line
+    ctxCmp.strokeStyle=COL; ctxCmp.globalAlpha=0.22; ctxCmp.lineWidth=1;
+    ctxCmp.beginPath(); ctxCmp.moveTo(0,tB); ctxCmp.lineTo(W,tB); ctxCmp.stroke();
     ctxCmp.globalAlpha=1;
 
-    if (isMaj) {
-      const lbl=CARD[nd]??String(nd);
-      const fSz=isCard?H*0.175:H*0.130;
-      ctxCmp.fillStyle   =COL;
-      ctxCmp.font        =`bold ${fSz}px 'Courier New',monospace`;
-      ctxCmp.textAlign   ='center';
-      ctxCmp.textBaseline='bottom';
-      ctxCmp.globalAlpha =isCard?1.0:0.60;
-      ctxCmp.shadowBlur  =0;
-      ctxCmp.fillText(lbl, px, tB-tH-2);
-      ctxCmp.globalAlpha=1;
+    for (let d=Math.floor(hdg-VIS/2-5); d<=Math.ceil(hdg+VIS/2+5); d++) {
+      if (d%5!==0) continue;
+      const nd = ((d%360)+360)%360;
+      const px = W/2 + (d-hdg)*ppd;
+      if (px<-12||px>W+12) continue;
+
+      const isCard = nd%45===0, isMaj = nd%10===0;
+      const tH = isCard ? tB*0.62 : isMaj ? tB*0.38 : tB*0.20;
+
+      ctxCmp.strokeStyle = COL;
+      ctxCmp.lineWidth   = isCard ? 2.5 : 1.5;
+      ctxCmp.globalAlpha = isCard ? 1.0 : isMaj ? 0.60 : 0.25;
+      ctxCmp.shadowBlur  = 0;
+      ctxCmp.beginPath(); ctxCmp.moveTo(px,tB); ctxCmp.lineTo(px,tB-tH); ctxCmp.stroke();
+      ctxCmp.globalAlpha = 1;
+
+      if (isMaj) {
+        const lbl = CARD[nd] ?? String(nd);
+        const fSz = isCard ? H*0.175 : H*0.130;
+        ctxCmp.fillStyle    = COL;
+        ctxCmp.font         = `bold ${fSz}px 'Courier New',monospace`;
+        ctxCmp.textAlign    = 'center';
+        ctxCmp.textBaseline = 'bottom';
+        ctxCmp.globalAlpha  = isCard ? 1.0 : 0.60;
+        ctxCmp.shadowBlur   = 0;
+        ctxCmp.fillText(lbl, px, tB-tH-2);
+        ctxCmp.globalAlpha = 1;
+      }
     }
+
+    // Centre ▼
+    const triH = tB*0.22, triW = triH*0.85;
+    ctxCmp.fillStyle=COL; ctxCmp.shadowBlur=0; ctxCmp.globalAlpha=1;
+    ctxCmp.beginPath();
+    ctxCmp.moveTo(W/2,         tB+2);
+    ctxCmp.lineTo(W/2-triW/2,  tB-triH+2);
+    ctxCmp.lineTo(W/2+triW/2,  tB-triH+2);
+    ctxCmp.closePath(); ctxCmp.fill();
+
+    ctxCmp.strokeStyle=COL; ctxCmp.lineWidth=2;
+    ctxCmp.beginPath(); ctxCmp.moveTo(W/2,tB-triH); ctxCmp.lineTo(W/2,tB-tB*0.64); ctxCmp.stroke();
+
+    // Edge fades
+    const fw = W*0.08;
+    const gL = ctxCmp.createLinearGradient(0,0,fw,0);
+    gL.addColorStop(0,'rgba(0,0,0,1)'); gL.addColorStop(1,'rgba(0,0,0,0)');
+    const gR = ctxCmp.createLinearGradient(W-fw,0,W,0);
+    gR.addColorStop(0,'rgba(0,0,0,0)'); gR.addColorStop(1,'rgba(0,0,0,1)');
+    ctxCmp.fillStyle=gL; ctxCmp.fillRect(0,0,fw,tB+4);
+    ctxCmp.fillStyle=gR; ctxCmp.fillRect(W-fw,0,fw,tB+4);
+
+    // Heading readout at bottom
+    const hdgFsz = Math.min((H-tB)*0.80, H*0.22);
+    ctxCmp.fillStyle=COL; ctxCmp.font=`bold ${hdgFsz}px 'Courier New',monospace`;
+    ctxCmp.textAlign='center'; ctxCmp.textBaseline='top'; ctxCmp.shadowBlur=0;
+    ctxCmp.fillText(hdgStr, W/2, tB+3);
   }
-
-  // centre ▼ + vertical line
-  const triH=tB*0.22, triW=triH*0.85;
-  ctxCmp.fillStyle=COL; ctxCmp.shadowBlur=0; ctxCmp.globalAlpha=1;
-  ctxCmp.beginPath();
-  ctxCmp.moveTo(W/2,          tB+2);
-  ctxCmp.lineTo(W/2-triW/2,   tB-triH+2);
-  ctxCmp.lineTo(W/2+triW/2,   tB-triH+2);
-  ctxCmp.closePath(); ctxCmp.fill();
-
-  ctxCmp.strokeStyle=COL; ctxCmp.lineWidth=2;
-  ctxCmp.beginPath(); ctxCmp.moveTo(W/2,tB-triH); ctxCmp.lineTo(W/2,tB-tB*0.64); ctxCmp.stroke();
-
-  // edge fades
-  const fw=W*0.08;
-  const gL=ctxCmp.createLinearGradient(0,0,fw,0);
-  gL.addColorStop(0,'rgba(0,0,0,1)'); gL.addColorStop(1,'rgba(0,0,0,0)');
-  const gR=ctxCmp.createLinearGradient(W-fw,0,W,0);
-  gR.addColorStop(0,'rgba(0,0,0,0)'); gR.addColorStop(1,'rgba(0,0,0,1)');
-  ctxCmp.fillStyle=gL; ctxCmp.fillRect(0,0,fw,tB+4);
-  ctxCmp.fillStyle=gR; ctxCmp.fillRect(W-fw,0,fw,tB+4);
-
-  // heading readout
-  const hdgStr=String(Math.round(hdg)).padStart(3,'0')+'°';
-  const hdgFsz=Math.min((H-tB)*0.80,H*0.22);
-  ctxCmp.fillStyle=COL; ctxCmp.font=`bold ${hdgFsz}px 'Courier New',monospace`;
-  ctxCmp.textAlign='center'; ctxCmp.textBaseline='top'; ctxCmp.shadowBlur=0;
-  ctxCmp.fillText(hdgStr, W/2, tB+3);
 }
 
 // ═══════════════════════════════════════════════════════
