@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>HUD v0.1.1</title>
+<title>HUD v0.1.2</title>
 <style>
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
 
@@ -317,7 +317,7 @@ input[type=color] {
 
 <div id="mpop">
   <div class="m-hd">
-    <span>HUD SETTINGS v0.1.1</span>
+    <span>HUD SETTINGS v0.1.2</span>
     <button class="m-close" id="mclose">✕</button>
   </div>
 
@@ -401,7 +401,7 @@ input[type=color] {
 
 <!-- Instruction overlay -->
 <div id="inst">
-  <div class="i-ver">HUD v0.1.1 — CAR HEAD-UP DISPLAY</div>
+  <div class="i-ver">HUD v0.1.2 — CAR HEAD-UP DISPLAY</div>
   <div class="i-icon">☝️</div>
   <div class="i-head">
     スワイプ ↑ で明るく<br>
@@ -417,7 +417,7 @@ input[type=color] {
 </div>
 
 <div id="sbar">
-  <span class="sbar-v">HUD v0.1.1</span>
+  <span class="sbar-v">HUD v0.1.2</span>
   <div class="dot" id="dot-gps" title="GPS"></div>
   <div class="dot" id="dot-cmp" title="Compass"></div>
 </div>
@@ -646,9 +646,11 @@ function drawClock() {
 
 // ═══════════════════════════════════════════════════════
 //  DRAW — COMPASS
-//  In landscape mode, the physical device is rotated –90°
-//  relative to the displayed content, so compass heading
-//  needs +90° correction to match visual orientation.
+//  Heading corrections:
+//    Landscape : UI is rotated –90°, device physically turned
+//                counter-clockwise → sensor reads +90° too much → subtract 90°
+//    mV (上下反転): device is flipped 180° → add 180°
+//  Corrections are cumulative.
 // ═══════════════════════════════════════════════════════
 const CARD = {0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
 
@@ -660,10 +662,11 @@ function drawCompass() {
   ctxCmp.clearRect(0,0,W,H);
 
   const COL = ST.color;
-  // Landscape correction: UI rotated –90°, so compass heading += 90
-  const hdg = ST.ls
-    ? ((ST.heading + 90) % 360 + 360) % 360
-    : ST.heading;
+  // Landscape: rotate –90° (subtract); vertical flip: add 180°
+  let correction = 0;
+  if (ST.ls) correction -= 90;
+  if (ST.mV) correction += 180;
+  const hdg = ((ST.heading + correction) % 360 + 360) % 360;
 
   const tB  = H * 0.66;   // tape base Y
   const VIS = 100;          // visible degrees window
