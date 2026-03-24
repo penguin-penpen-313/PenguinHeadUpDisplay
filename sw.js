@@ -1,4 +1,4 @@
-const CACHE  = 'hud-v0.1.2';
+const CACHE  = 'hud-v1.0.0';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
