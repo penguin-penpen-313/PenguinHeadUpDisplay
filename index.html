@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>HUD v1.0.0</title>
+<title>HUD v1.0.1</title>
 <style>
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
 
@@ -74,18 +74,6 @@ body.ls #hud {
     "spd clk" 1fr
     "cmp cmp" minmax(72px, 23%)
     / 2fr 1fr;
-}
-
-/* Scan-line texture */
-#hud::after {
-  content:'';
-  position:absolute; inset:0;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0, transparent 3px,
-    rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px
-  );
-  pointer-events:none; z-index:2;
 }
 
 /* ── Sections ── */
@@ -275,7 +263,7 @@ input[type=color] {
 <!-- Menu popup -->
 <div id="mpop">
   <div class="m-hd">
-    <span>HUD SETTINGS v1.0.0</span>
+    <span>HUD SETTINGS v1.0.1</span>
     <button class="m-close" id="mclose">✕</button>
   </div>
 
@@ -354,7 +342,7 @@ input[type=color] {
 
 <!-- Instruction overlay -->
 <div id="inst">
-  <div class="i-ver">HUD v1.0.0 — CAR HEAD-UP DISPLAY</div>
+  <div class="i-ver">HUD v1.0.1 — CAR HEAD-UP DISPLAY</div>
   <div class="i-icon">☝️</div>
   <div class="i-head">
     スワイプ ↑ で明るく<br>
@@ -370,7 +358,7 @@ input[type=color] {
 </div>
 
 <div id="sbar">
-  <span class="sbar-v">HUD v1.0.0</span>
+  <span class="sbar-v">HUD v1.0.1</span>
   <div class="dot" id="dot-gps"></div>
   <div class="dot" id="dot-cmp"></div>
 </div>
@@ -415,7 +403,7 @@ function setCSSColor(hex) {
 }
 
 // ═══════════════════════════════════════════════════════
-//  7-SEGMENT — fully-filled polygon segments, flat, no shadow
+//  7-SEGMENT — round-cap strokes, ON segments only, no shadow
 // ═══════════════════════════════════════════════════════
 const SEG = {
   '0':[1,1,1,1,1,1,0],'1':[0,1,1,0,0,0,0],
@@ -427,76 +415,34 @@ const SEG = {
 };
 
 function drawDigit(ctx, x, y, w, h, ch, col) {
-  const s = SEG[ch] ?? SEG[' '];
-  if (!s.some(Boolean)) return;   // nothing to draw
+  const s  = SEG[ch] ?? SEG[' '];
+  const sw = Math.max(3, w * 0.13);  // stroke width — thick for visibility
+  const g  = sw * 0.55;              // gap inset from ends
+  const r  = sw * 0.46;              // lineCap radius
+  const my = y + h * 0.5;
 
-  const T = w * 0.136;  // segment thickness
-  const G = w * 0.028;  // gap between segments at ends
-  const B = T * 0.36;   // bevel (chamfer) size
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = sw;
+  ctx.shadowBlur  = 0;   // absolutely no shadow/glow
 
-  const midY = h * 0.5;
-  // y-positions of segment starts
-  const yT = 0;           // top horiz
-  const yM = midY - T/2;  // mid horiz
-  const yBo = h - T;      // bot horiz
-  // vertical segment extents (relative to y)
-  const vtS = T + G;          // top verts: start
-  const vtE = midY - T/2 - G; // top verts: end
-  const vbS = midY + T/2 + G; // bot verts: start
-  const vbE = h - T - G;      // bot verts: end
-
-  ctx.fillStyle  = col;
-  ctx.shadowBlur = 0;
-
-  // Horizontal segment  ——  8-point polygon
-  const pH = (ys) => {
+  // Only draw ON segments — OFF segments are completely invisible
+  const seg = (on, x1,y1,x2,y2) => {
+    if (!on) return;
     ctx.beginPath();
-    ctx.moveTo(x+G+B,   y+ys    );
-    ctx.lineTo(x+w-G-B, y+ys    );
-    ctx.lineTo(x+w-G,   y+ys+B  );
-    ctx.lineTo(x+w-G,   y+ys+T-B);
-    ctx.lineTo(x+w-G-B, y+ys+T  );
-    ctx.lineTo(x+G+B,   y+ys+T  );
-    ctx.lineTo(x+G,     y+ys+T-B);
-    ctx.lineTo(x+G,     y+ys+B  );
-    ctx.closePath(); ctx.fill();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
   };
 
-  // Vertical-left segment  |  8-point polygon
-  const pVL = (ys, ye) => {
-    ctx.beginPath();
-    ctx.moveTo(x+G,     y+ys+B  );
-    ctx.lineTo(x+G+B,   y+ys    );
-    ctx.lineTo(x+T-G-B, y+ys    );
-    ctx.lineTo(x+T-G,   y+ys+B  );
-    ctx.lineTo(x+T-G,   y+ye-B  );
-    ctx.lineTo(x+T-G-B, y+ye    );
-    ctx.lineTo(x+G+B,   y+ye    );
-    ctx.lineTo(x+G,     y+ye-B  );
-    ctx.closePath(); ctx.fill();
-  };
-
-  // Vertical-right segment  |  8-point polygon
-  const pVR = (ys, ye) => {
-    ctx.beginPath();
-    ctx.moveTo(x+w-T+G,   y+ys+B  );
-    ctx.lineTo(x+w-T+G+B, y+ys    );
-    ctx.lineTo(x+w-G-B,   y+ys    );
-    ctx.lineTo(x+w-G,     y+ys+B  );
-    ctx.lineTo(x+w-G,     y+ye-B  );
-    ctx.lineTo(x+w-G-B,   y+ye    );
-    ctx.lineTo(x+w-T+G+B, y+ye    );
-    ctx.lineTo(x+w-T+G,   y+ye-B  );
-    ctx.closePath(); ctx.fill();
-  };
-
-  if (s[0]) pH(yT);          // a top
-  if (s[1]) pVR(vtS, vtE);   // b top-right
-  if (s[2]) pVR(vbS, vbE);   // c bot-right
-  if (s[3]) pH(yBo);         // d bottom
-  if (s[4]) pVL(vbS, vbE);   // e bot-left
-  if (s[5]) pVL(vtS, vtE);   // f top-left
-  if (s[6]) pH(yM);          // g middle
+  seg(s[0], x+g+r,  y+r,     x+w-g-r, y+r    );  // a top
+  seg(s[1], x+w-r,  y+g+r,   x+w-r,   my-g   );  // b top-right
+  seg(s[2], x+w-r,  my+g,    x+w-r,   y+h-g-r);  // c bot-right
+  seg(s[3], x+g+r,  y+h-r,   x+w-g-r, y+h-r  );  // d bottom
+  seg(s[4], x+r,    my+g,    x+r,     y+h-g-r);  // e bot-left
+  seg(s[5], x+r,    y+g+r,   x+r,     my-g   );  // f top-left
+  seg(s[6], x+g+r,  my,      x+w-g-r, my     );  // g middle
 }
 
 function drawColon(ctx, x, y, w, h, col) {
