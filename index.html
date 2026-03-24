@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>HUD v1.0.2</title>
+<title>HUD v1.0.3</title>
 <style>
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
 
@@ -131,7 +131,7 @@ canvas { display:block }
 /* Menu popup */
 #mpop {
   position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
-  width:290px; max-height:80vh;
+  width:340px; max-height:88vh;
   overflow-y:auto;
   background:#000;
   border:1px solid var(--col-bd);
@@ -263,7 +263,7 @@ input[type=color] {
 <!-- Menu popup -->
 <div id="mpop">
   <div class="m-hd">
-    <span>HUD SETTINGS v1.0.2</span>
+    <span>HUD SETTINGS v1.0.3</span>
     <button class="m-close" id="mclose">✕</button>
   </div>
 
@@ -342,7 +342,7 @@ input[type=color] {
 
 <!-- Instruction overlay -->
 <div id="inst">
-  <div class="i-ver">HUD v1.0.2 — CAR HEAD-UP DISPLAY</div>
+  <div class="i-ver">HUD v1.0.3 — CAR HEAD-UP DISPLAY</div>
   <div class="i-icon">☝️</div>
   <div class="i-head">
     スワイプ ↑ で明るく<br>
@@ -352,13 +352,14 @@ input[type=color] {
     画面の輝度は本体の画面設定から最大に<br>
     してください<br>
     <br>
-    画面を長押しでメニューを開きます
+    ダブルタップ → カラー切替<br>
+    長押し → メニューを開く
   </div>
   <div class="i-tap">タップして開始 ▶</div>
 </div>
 
 <div id="sbar">
-  <span class="sbar-v">HUD v1.0.2</span>
+  <span class="sbar-v">HUD v1.0.3</span>
   <div class="dot" id="dot-gps"></div>
   <div class="dot" id="dot-cmp"></div>
 </div>
@@ -558,8 +559,11 @@ function drawCompass() {
 
   const COL=ST.color;
   let corr=0;
-  if (ST.ls) corr-=90;
-  if (ST.mV) corr+=180;
+  if (ST.ls) corr -= 90;
+  if (ST.mV) corr += 180;
+  // Mirror-text condition (mH XOR mV): the compass tape appears reversed
+  // → add 180° so the displayed heading matches real direction
+  if (ST.mH !== ST.mV) corr += 180;
   const hdg=((ST.heading+corr)%360+360)%360;
 
   // ── Layout ──────────────────────────────────────────────────────────────
@@ -888,6 +892,30 @@ function applyColor(hex){
 }
 document.querySelectorAll('.sw').forEach(b=>b.addEventListener('click',()=>applyColor(b.dataset.c)));
 document.getElementById('color-pick').addEventListener('input',function(){applyColor(this.value);});
+
+// ── Double-tap to cycle colors ──────────────────────────────────────────
+// Cycle list = preset swatches + custom color (if not already in presets)
+const PRESET_COLORS = ['#00ffff','#ffffff','#7fff00','#ff00ff','#ff8c00','#ff3a3a'];
+let _lastTap = 0;
+document.addEventListener('touchend', e => {
+  if (e.target.closest('#mpop') || e.target.closest('#inst') || e.target.closest('#menu-hint')) return;
+  const now = Date.now();
+  if (now - _lastTap < 320) {
+    // Double-tap detected → cycle to next color
+    const cycle = PRESET_COLORS.includes(ST.color)
+      ? PRESET_COLORS
+      : [...PRESET_COLORS, ST.color];
+    const idx = cycle.indexOf(ST.color);
+    const next = cycle[(idx + 1) % cycle.length];
+    applyColor(next);
+
+    // Brief flash hint on status bar
+    const sbar = document.getElementById('sbar');
+    sbar.style.opacity = '0.85';
+    setTimeout(() => { sbar.style.opacity = ''; }, 800);
+  }
+  _lastTap = now;
+}, { passive: true });
 
 document.getElementById('dim-slider').addEventListener('input',function(){setDim(parseFloat(this.value)/100);});
 
