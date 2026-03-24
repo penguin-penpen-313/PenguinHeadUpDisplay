@@ -1,7 +1,7 @@
 {
   "name": "HUD Display",
   "short_name": "HUD",
-  "description": "Car Head-Up Display v0.0.0",
+  "description": "Car Head-Up Display v0.1.0",
   "start_url": "./",
   "display": "fullscreen",
   "orientation": "any",

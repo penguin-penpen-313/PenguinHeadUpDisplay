@@ -9,474 +9,563 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>HUD v0.0.0</title>
+<title>HUD v0.1.0</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
+/* ─────────────────────────────────────────────────
+   RESET & BASE
+───────────────────────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
 
-:root{
-  --c-speed:#00ffff;
-  --c-clk:#ffffff;
-  --c-sec:#7fff00;
-  --c-cmp:#00ff88;
-  --c-hdg:#ff00ff;
-  --c-card:#00e5ff;
-  --dim:0;
+:root {
+  --col: #00ffff;
+  --col-bd: rgba(0,255,255,0.15);
+  --dim: 0;
 }
 
-html,body{
-  width:100%;height:100%;
+html, body {
+  width:100%; height:100%;
   background:#000;
   overflow:hidden;
-  font-family:'Courier New',Courier,monospace;
+  font-family:'Courier New', Courier, monospace;
   -webkit-tap-highlight-color:transparent;
-  user-select:none;-webkit-user-select:none;
+  user-select:none; -webkit-user-select:none;
   touch-action:none;
 }
 
-/* ── brightness dim overlay ── */
-#dim-overlay{
-  position:fixed;inset:0;
+/* ─────────────────────────────────────────────────
+   BRIGHTNESS OVERLAY
+───────────────────────────────────────────────── */
+#dim-overlay {
+  position:fixed; inset:0;
   background:#000;
   opacity:var(--dim);
   pointer-events:none;
   z-index:800;
 }
 
-/* ── mirror transform wrapper ── */
-#hud-mirror{
-  position:fixed;inset:0;
-  transform-origin:center center;
+/* ─────────────────────────────────────────────────
+   HUD ROOT  — portrait = fills screen normally
+              landscape = content 90° rotated so it
+              appears as if phone is held sideways
+───────────────────────────────────────────────── */
+#hud-root {
+  position:fixed; inset:0;
 }
 
-/* ── keystone transform wrapper ── */
-#hud-ks{
-  width:100%;height:100%;
-  transform-origin:center center;
+/*
+  Landscape simulation:
+  Create a box sized (100vh × 100vw) which has landscape
+  proportions on a portrait phone, then rotate it –90°
+  so it visually fills the portrait screen while its
+  internal content renders as a wide landscape layout.
+
+  Centering math (portrait screen W×H, W<H):
+    element: width=H, height=W
+    center before rotation: (left + H/2, top + W/2)
+    we want center = (W/2, H/2)
+    → left = W/2 − H/2 = 50vw − 50vh  (negative)
+    → top  = H/2 − W/2 = 50vh − 50vw  (positive)
+*/
+body.ls #hud-root {
+  inset: unset;
+  width:  100vh;
+  height: 100vw;
+  top:  calc(50vh - 50vw);
+  left: calc(50vw - 50vh);
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
 }
 
-/* ── main grid ── */
-#hud{
-  position:relative;
-  width:100%;height:100%;
+/* ─────────────────────────────────────────────────
+   MIRROR & KEYSTONE WRAPPERS
+───────────────────────────────────────────────── */
+#hud-mirror, #hud-ks {
+  width:100%; height:100%;
+  transform-origin: center center;
+}
+
+/* ─────────────────────────────────────────────────
+   MAIN GRID
+───────────────────────────────────────────────── */
+#hud {
+  width:100%; height:100%;
   display:grid;
+  position:relative;
 }
 
-/* LANDSCAPE layout */
-body.ls #hud{
-  grid-template:
-    "spd   clk" 1fr
-    "cmp   cmp" minmax(72px,21%)
-    /2fr   1fr;
-}
-/* PORTRAIT layout */
-body.pt #hud{
+/* Portrait: speed tall, clock mid, compass strip */
+body.pt #hud {
   grid-template:
     "spd" 2fr
     "clk" 1fr
-    "cmp" minmax(72px,1fr)
-    /1fr;
+    "cmp" minmax(70px, 1fr)
+    / 1fr;
 }
 
-/* scan-line texture */
-#hud::after{
+/* Landscape: speed left 2/3, clock right 1/3, compass full-width strip */
+body.ls #hud {
+  grid-template:
+    "spd clk" 1fr
+    "cmp cmp" minmax(70px, 22%)
+    / 2fr 1fr;
+}
+
+/* subtle scan-line texture — HUD feel without glow */
+#hud::after {
   content:'';
-  position:absolute;inset:0;
-  background:repeating-linear-gradient(
+  position:absolute; inset:0;
+  background: repeating-linear-gradient(
     to bottom,
-    transparent 0px,transparent 3px,
-    rgba(0,0,0,0.09) 3px,rgba(0,0,0,0.09) 4px
+    transparent 0, transparent 3px,
+    rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
   );
-  pointer-events:none;
-  z-index:2;
+  pointer-events:none; z-index:2;
 }
 
-/* ── sections ── */
-#s-spd,#s-clk,#s-cmp{
-  position:relative;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
+/* ─────────────────────────────────────────────────
+   SECTIONS
+───────────────────────────────────────────────── */
+#s-spd, #s-clk, #s-cmp {
+  position:relative; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
 }
-#s-spd{grid-area:spd;padding:6px 8px 4px}
-#s-clk{
-  grid-area:clk;padding:6px 8px 6px;
-  border-left:1px solid rgba(0,255,255,0.12);
+#s-spd { grid-area:spd }
+#s-clk {
+  grid-area:clk;
+  border-left:1px solid var(--col-bd);
 }
-body.pt #s-clk{border-left:none;border-top:1px solid rgba(0,255,255,0.12);border-bottom:1px solid rgba(0,255,255,0.12)}
-#s-cmp{
-  grid-area:cmp;padding:0;
-  border-top:1px solid rgba(0,255,255,0.12);
+body.pt #s-clk {
+  border-left:none;
+  border-top:1px solid var(--col-bd);
+  border-bottom:1px solid var(--col-bd);
+}
+#s-cmp {
+  grid-area:cmp;
+  border-top:1px solid var(--col-bd);
 }
 
-.lbl{
-  font-size:clamp(7px,1.4vmin,10px);
-  letter-spacing:3px;
-  opacity:.35;
-  margin-bottom:3px;
-  display:block;text-align:center;
+canvas { display:block }
+
+/* ─────────────────────────────────────────────────
+   CORNER BRACKETS (fixed to viewport)
+───────────────────────────────────────────────── */
+.bkt {
+  position:fixed; width:18px; height:18px;
+  pointer-events:none; z-index:3;
+  opacity:0.20;
 }
-.unit{
-  font-size:clamp(8px,1.5vmin,11px);
-  letter-spacing:4px;
-  opacity:.42;
-  margin-top:4px;
-  display:block;text-align:center;
-  color:var(--c-speed);
+.bkt-tl { top:5px;    left:5px;  border-top:2px solid var(--col); border-left:2px solid var(--col) }
+.bkt-tr { top:5px;    right:5px; border-top:2px solid var(--col); border-right:2px solid var(--col) }
+.bkt-bl { bottom:5px; left:5px;  border-bottom:2px solid var(--col); border-left:2px solid var(--col) }
+.bkt-br { bottom:5px; right:5px; border-bottom:2px solid var(--col); border-right:2px solid var(--col) }
+
+/* ─────────────────────────────────────────────────
+   MENU BUTTON
+───────────────────────────────────────────────── */
+#mbtn {
+  position:fixed; top:7px; right:7px;
+  width:36px; height:36px;
+  background:rgba(0,0,0,0.82);
+  border:1px solid var(--col-bd);
+  border-radius:3px;
+  color:var(--col);
+  font-size:20px;
+  cursor:pointer; z-index:600;
+  display:flex; align-items:center; justify-content:center;
 }
-#lbl-spd{color:var(--c-speed)}
-#lbl-clk{color:var(--c-clk)}
+#mbtn:active { background:rgba(255,255,255,0.06) }
 
-canvas{display:block}
-
-/* ── corner brackets (HUD deco) ── */
-.bkt{position:fixed;width:22px;height:22px;opacity:.28;pointer-events:none;z-index:3}
-.bkt-tl{top:4px;left:4px;border-top:2px solid #00ffff;border-left:2px solid #00ffff}
-.bkt-tr{top:4px;right:4px;border-top:2px solid #00ffff;border-right:2px solid #00ffff}
-.bkt-bl{bottom:4px;left:4px;border-bottom:2px solid #00ffff;border-left:2px solid #00ffff}
-.bkt-br{bottom:4px;right:4px;border-bottom:2px solid #00ffff;border-right:2px solid #00ffff}
-
-/* ── menu button ── */
-#mbtn{
-  position:fixed;top:7px;right:7px;
-  width:38px;height:38px;
-  background:rgba(0,0,0,.75);
-  border:1px solid rgba(0,255,255,.3);
-  border-radius:5px;
-  color:#00ffff;
-  font-size:19px;
-  line-height:1;
-  cursor:pointer;
-  z-index:600;
-  display:flex;align-items:center;justify-content:center;
-  transition:background .15s,border-color .15s;
-}
-#mbtn:active{background:rgba(0,255,255,.18);border-color:#00ffff}
-
-/* ── menu popup ── */
-#mpop{
-  position:fixed;top:52px;right:7px;
-  width:272px;max-height:82vh;
+/* ─────────────────────────────────────────────────
+   MENU POPUP
+───────────────────────────────────────────────── */
+#mpop {
+  position:fixed; top:50px; right:7px;
+  width:280px; max-height:84vh;
   overflow-y:auto;
-  background:rgba(0,7,11,.97);
-  border:1px solid rgba(0,255,255,.32);
-  border-radius:6px;
-  padding:14px 14px 16px;
-  z-index:600;
-  display:none;
+  background:#000;
+  border:1px solid var(--col-bd);
+  border-radius:3px;
+  padding:12px 14px 18px;
+  z-index:600; display:none;
   touch-action:auto;
 }
-#mpop.open{display:block}
+#mpop.open { display:block }
 
-.m-hd{
-  display:flex;justify-content:space-between;align-items:center;
-  color:#00ffff;font-size:9px;letter-spacing:4px;opacity:.5;
-  padding-bottom:8px;margin-bottom:10px;
-  border-bottom:1px solid rgba(0,255,255,.12);
+.m-hd {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:9px; letter-spacing:4px;
+  color:var(--col); opacity:0.40;
+  padding-bottom:8px; margin-bottom:12px;
+  border-bottom:1px solid var(--col-bd);
 }
-.m-close{
-  background:none;border:none;color:#00ffff;
-  font-size:15px;cursor:pointer;opacity:.45;padding:0 2px;
+.m-close {
+  background:none; border:none;
+  color:var(--col); font-size:14px; opacity:0.35;
+  cursor:pointer; padding:0 2px;
   font-family:inherit;
 }
-.m-grp{margin-bottom:14px}
-.m-grp-ttl{
-  font-size:8px;letter-spacing:3px;
-  color:#7fff00;opacity:.55;margin-bottom:8px;
+.m-grp  { margin-bottom:16px }
+.m-gtl  {
+  font-size:8px; letter-spacing:3px;
+  color:var(--col); opacity:0.35;
+  margin-bottom:9px;
 }
-.m-row{
-  display:flex;align-items:center;
-  justify-content:space-between;margin-bottom:8px;
+.m-row  {
+  display:flex; align-items:center;
+  justify-content:space-between; margin-bottom:8px;
 }
-.m-lbl{color:rgba(255,255,255,.72);font-size:12px}
-.tbtn{
-  background:rgba(0,255,255,.07);
-  border:1px solid rgba(0,255,255,.22);
-  border-radius:3px;
-  color:rgba(0,255,255,.48);
-  font-size:10px;letter-spacing:1px;
-  padding:4px 10px;
+.m-lbl  { color:rgba(255,255,255,0.60); font-size:12px }
+.m-pair { display:flex; gap:4px }
+
+/* toggle buttons */
+.tbtn {
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius:2px;
+  color:rgba(255,255,255,0.30);
+  font-size:10px; letter-spacing:1px;
+  padding:5px 12px;
   cursor:pointer;
   font-family:'Courier New',monospace;
-  min-width:74px;text-align:center;
-  transition:all .15s;
+  min-width:52px; text-align:center;
+  transition:all .10s;
 }
-.tbtn.on{
-  background:rgba(0,255,255,.2);
-  border-color:#00ffff;
-  color:#00ffff;
+.tbtn.on {
+  background:rgba(255,255,255,0.06);
+  border-color:var(--col);
+  color:var(--col);
 }
-.sgrp{margin-bottom:10px}
-.shd{
-  display:flex;justify-content:space-between;
-  margin-bottom:4px;
+
+/* color swatches */
+.color-row { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:9px }
+.sw {
+  width:28px; height:28px;
+  border-radius:2px;
+  border:2px solid transparent;
+  cursor:pointer;
+  flex-shrink:0;
 }
-.snm{font-size:11px;color:rgba(255,255,255,.62)}
-.svl{font-size:11px;color:#00ffff;min-width:32px;text-align:right}
-input[type=range]{
+.sw.on { border-color:#fff }
+
+/* sliders */
+.sgrp { margin-bottom:12px }
+.shd  { display:flex; justify-content:space-between; margin-bottom:5px }
+.snm  { font-size:11px; color:rgba(255,255,255,0.50) }
+.svl  { font-size:11px; color:var(--col); min-width:40px; text-align:right }
+
+input[type=range] {
   -webkit-appearance:none;
-  width:100%;height:4px;
-  background:rgba(0,255,255,.14);
-  border-radius:2px;outline:none;cursor:pointer;
+  width:100%; height:3px;
+  background:rgba(255,255,255,0.10);
+  border-radius:2px; outline:none; cursor:pointer;
   touch-action:auto;
 }
-input[type=range]::-webkit-slider-thumb{
+input[type=range]::-webkit-slider-thumb {
   -webkit-appearance:none;
-  width:16px;height:16px;
-  background:#00ffff;
+  width:14px; height:14px;
+  background:var(--col);
   border-radius:2px;
-  box-shadow:0 0 7px #00ffff88;
 }
-input[type=range]::-moz-range-thumb{
-  width:16px;height:16px;background:#00ffff;
-  border-radius:2px;border:none;
+input[type=range]::-moz-range-thumb {
+  width:14px; height:14px;
+  background:var(--col);
+  border-radius:2px; border:none;
 }
 
-/* ── instruction overlay ── */
-#inst{
-  position:fixed;inset:0;
-  background:rgba(0,0,0,.93);
+input[type=color] {
+  width:34px; height:28px;
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:2px; padding:1px 1px;
+  background:#000; cursor:pointer;
+}
+
+/* ─────────────────────────────────────────────────
+   INSTRUCTION OVERLAY
+───────────────────────────────────────────────── */
+#inst {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.95);
   z-index:900;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  text-align:center;padding:28px;
-  transition:opacity .65s ease;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center; padding:28px;
+  transition:opacity .60s ease;
 }
-#inst.fade{opacity:0;pointer-events:none}
-.i-title{
-  font-size:clamp(20px,5vmin,30px);
-  color:#00ffff;letter-spacing:7px;margin-bottom:4px;
-}
-.i-sub{
-  font-size:10px;color:rgba(0,255,255,.35);
-  letter-spacing:3px;margin-bottom:34px;
-}
-.i-icon{
-  font-size:54px;margin-bottom:18px;
-  animation:swh 2.2s ease-in-out infinite;
-}
-@keyframes swh{
-  0%,100%{transform:translateY(0);opacity:1}
-  35%{transform:translateY(-22px);opacity:.65}
-  65%{transform:translateY(12px);opacity:.85}
-}
-.i-main{
-  font-size:clamp(13px,2.8vmin,17px);
-  color:rgba(255,255,255,.82);
-  letter-spacing:2px;line-height:2.1;
-  margin-bottom:10px;
-}
-.i-note{
-  font-size:clamp(10px,2vmin,13px);
-  color:#7fff00;letter-spacing:2px;margin-bottom:32px;
-}
-.i-tap{
-  font-size:11px;color:rgba(255,255,255,.28);
-  letter-spacing:3px;
-  animation:plse 1.6s ease-in-out infinite;
-}
-@keyframes plse{0%,100%{opacity:.28}50%{opacity:.65}}
+#inst.fade { opacity:0; pointer-events:none }
 
-/* ── status bar ── */
-#sbar{
-  position:fixed;bottom:4px;left:6px;
-  display:flex;align-items:center;gap:5px;
-  pointer-events:none;z-index:4;
+.i-ver   { font-size:8px; letter-spacing:4px; color:rgba(255,255,255,0.18); margin-bottom:28px }
+.i-icon  { font-size:56px; margin-bottom:16px; animation:sway 2.2s ease-in-out infinite }
+@keyframes sway {
+  0%,100%{ transform:translateY(0) }
+  35%    { transform:translateY(-22px) }
+  65%    { transform:translateY(14px) }
 }
-.sbar-txt{font-size:8px;color:rgba(0,255,255,.18);letter-spacing:1px}
-.dot{width:5px;height:5px;border-radius:50%;background:#333;transition:background .5s}
-.dot.ok{background:#00ff88;box-shadow:0 0 4px #00ff88}
-.dot.err{background:#ff4444}
+.i-head  { font-size:clamp(14px,3.2vmin,20px); color:var(--col); letter-spacing:3px; line-height:2.2; margin-bottom:8px }
+.i-note  { font-size:clamp(10px,2vmin,13px); color:rgba(255,255,255,0.28); letter-spacing:1px; line-height:1.9; margin-bottom:28px }
+.i-tap   { font-size:11px; color:rgba(255,255,255,0.22); letter-spacing:3px; animation:pls 1.7s ease-in-out infinite }
+@keyframes pls { 0%,100%{opacity:.22} 50%{opacity:.55} }
+
+/* ─────────────────────────────────────────────────
+   STATUS BAR
+───────────────────────────────────────────────── */
+#sbar {
+  position:fixed; bottom:4px; left:6px;
+  display:flex; align-items:center; gap:5px;
+  pointer-events:none; z-index:4;
+}
+.sbar-v { font-size:8px; color:rgba(255,255,255,0.08); letter-spacing:1px }
+.dot {
+  width:5px; height:5px; border-radius:50%;
+  background:#1a1a1a; transition:background .5s;
+}
+.dot.ok  { background:#00ff88 }
+.dot.err { background:#ff3a3a }
 </style>
 </head>
-<body class="ls">
+
+<!-- default portrait; JS will apply saved layout on load -->
+<body class="pt">
 
 <div id="dim-overlay"></div>
 
-<div id="hud-mirror">
-  <div id="hud-ks">
-    <div id="hud">
-
-      <!-- SPEED -->
-      <div id="s-spd">
-        <span id="lbl-spd" class="lbl">SPEED</span>
-        <canvas id="cvs-spd"></canvas>
-        <span class="unit">km/h</span>
+<!-- ── HUD display area (may rotate for landscape) ── -->
+<div id="hud-root">
+  <div id="hud-mirror">
+    <div id="hud-ks">
+      <div id="hud">
+        <div id="s-spd"><canvas id="cvs-spd"></canvas></div>
+        <div id="s-clk"><canvas id="cvs-clk"></canvas></div>
+        <div id="s-cmp"><canvas id="cvs-cmp"></canvas></div>
       </div>
-
-      <!-- CLOCK -->
-      <div id="s-clk">
-        <span id="lbl-clk" class="lbl">TIME</span>
-        <canvas id="cvs-clk"></canvas>
-      </div>
-
-      <!-- COMPASS -->
-      <div id="s-cmp">
-        <canvas id="cvs-cmp"></canvas>
-      </div>
-
     </div>
   </div>
 </div>
 
-<!-- Corner brackets -->
+<!-- Corner brackets (viewport-fixed) -->
 <div class="bkt bkt-tl"></div>
 <div class="bkt bkt-tr"></div>
 <div class="bkt bkt-bl"></div>
 <div class="bkt bkt-br"></div>
 
 <!-- Menu button -->
-<button id="mbtn" aria-label="メニュー">⋮</button>
+<button id="mbtn" aria-label="設定">⋮</button>
 
 <!-- Menu popup -->
 <div id="mpop">
   <div class="m-hd">
-    <span>HUD SETTINGS v0.0.0</span>
+    <span>HUD SETTINGS v0.1.0</span>
     <button class="m-close" id="mclose">✕</button>
   </div>
 
+  <!-- COLOR -->
   <div class="m-grp">
-    <div class="m-grp-ttl">DISPLAY LAYOUT</div>
-    <div class="m-row">
-      <span class="m-lbl">向き</span>
-      <button class="tbtn on" id="btn-layout">LANDSCAPE</button>
+    <div class="m-gtl">DISPLAY COLOR</div>
+    <div class="color-row">
+      <button class="sw" data-c="#00ffff" style="background:#00ffff" title="Cyan"></button>
+      <button class="sw" data-c="#ffffff" style="background:#ffffff" title="White"></button>
+      <button class="sw" data-c="#7fff00" style="background:#7fff00" title="Chartreuse"></button>
+      <button class="sw" data-c="#ff00ff" style="background:#ff00ff" title="Magenta"></button>
+      <button class="sw" data-c="#ff8c00" style="background:#ff8c00" title="Orange"></button>
+      <button class="sw" data-c="#ff3a3a" style="background:#ff3a3a" title="Red"></button>
+    </div>
+    <div class="m-row" style="margin-bottom:0">
+      <span class="m-lbl">カスタムカラー</span>
+      <input type="color" id="color-pick" value="#00ffff">
     </div>
   </div>
 
+  <!-- BRIGHTNESS -->
   <div class="m-grp">
-    <div class="m-grp-ttl">MIRROR / FLIP</div>
+    <div class="m-gtl">BRIGHTNESS</div>
+    <div class="sgrp" style="margin-bottom:0">
+      <div class="shd">
+        <span class="snm">明るさ（スワイプでも調整可）</span>
+        <span class="svl" id="dim-val">100%</span>
+      </div>
+      <input type="range" id="dim-slider" min="0" max="94" value="0" step="1">
+    </div>
+  </div>
+
+  <!-- ORIENTATION -->
+  <div class="m-grp">
+    <div class="m-gtl">DISPLAY ORIENTATION</div>
+    <div class="m-row" style="margin-bottom:0">
+      <span class="m-lbl">表示方向</span>
+      <div class="m-pair">
+        <button class="tbtn on" id="btn-pt">縦向き</button>
+        <button class="tbtn"    id="btn-ls">横向き</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MIRROR -->
+  <div class="m-grp">
+    <div class="m-gtl">MIRROR / FLIP</div>
     <div class="m-row">
       <span class="m-lbl">左右反転</span>
       <button class="tbtn" id="btn-mh">OFF</button>
     </div>
-    <div class="m-row">
+    <div class="m-row" style="margin-bottom:0">
       <span class="m-lbl">上下反転</span>
       <button class="tbtn" id="btn-mv">OFF</button>
     </div>
   </div>
 
-  <div class="m-grp">
-    <div class="m-grp-ttl">KEYSTONE CORRECTION（台形補正）</div>
+  <!-- KEYSTONE -->
+  <div class="m-grp" style="margin-bottom:0">
+    <div class="m-gtl">KEYSTONE CORRECTION（台形補正）</div>
     <div class="sgrp">
       <div class="shd">
         <span class="snm">左右歪み (H)</span>
         <span class="svl" id="ksh-v">0°</span>
       </div>
-      <input type="range" id="ksh" min="-28" max="28" value="0">
+      <input type="range" id="ksh" min="-28" max="28" value="0" step="1">
     </div>
-    <div class="sgrp">
+    <div class="sgrp" style="margin-bottom:0">
       <div class="shd">
         <span class="snm">上下歪み (V)</span>
         <span class="svl" id="ksv-v">0°</span>
       </div>
-      <input type="range" id="ksv" min="-28" max="28" value="0">
+      <input type="range" id="ksv" min="-28" max="28" value="0" step="1">
     </div>
   </div>
 </div>
 
 <!-- Instruction overlay -->
 <div id="inst">
-  <div class="i-title">HUD</div>
-  <div class="i-sub">v0.0.0 — CAR HEAD-UP DISPLAY</div>
+  <div class="i-ver">HUD v0.1.0 — CAR HEAD-UP DISPLAY</div>
   <div class="i-icon">☝️</div>
-  <div class="i-main">
-    スワイプ ↑ で画面を明るく<br>
-    スワイプ ↓ で画面を暗く
+  <div class="i-head">
+    スワイプ ↑ で明るく<br>
+    スワイプ ↓ で暗く
   </div>
-  <div class="i-note">明るさはスワイプで調整できます</div>
+  <div class="i-note">
+    画面の最大輝度はスマホ本体の<br>
+    画面設定から最大にしてください<br>
+    <br>
+    ⋮ メニューからカラーや向きを変更できます
+  </div>
   <div class="i-tap">タップして開始 ▶</div>
 </div>
 
 <!-- Status bar -->
 <div id="sbar">
-  <span class="sbar-txt">HUD v0.0.0</span>
+  <span class="sbar-v">HUD v0.1.0</span>
   <div class="dot" id="dot-gps" title="GPS"></div>
   <div class="dot" id="dot-cmp" title="Compass"></div>
 </div>
 
 <script>
-// ================================================================
-//  STATE
-// ================================================================
+'use strict';
+// ════════════════════════════════════════════════════════
+//  PERSISTENT SETTINGS
+// ════════════════════════════════════════════════════════
+const SKEY = 'hud-v010';
+
 const ST = {
+  // live (not saved)
   speed:   0,
   heading: 0,
   gpsOk:   false,
   cmpOk:   false,
-  ls:      true,
-  mH:      false,
-  mV:      false,
-  ksH:     0,
-  ksV:     0,
-  dim:     0,
+  // saved
+  color: '#00ffff',
+  dim:   0,
+  ls:    false,   // false = portrait, true = landscape
+  mH:    false,
+  mV:    false,
+  ksH:   0,
+  ksV:   0,
 };
 
-// ================================================================
-//  7-SEGMENT
-// ================================================================
+function loadST() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SKEY) || 'null');
+    if (!s) return;
+    if (typeof s.color === 'string') ST.color = s.color;
+    if (typeof s.dim   === 'number') ST.dim   = s.dim;
+    if (typeof s.ls    === 'boolean') ST.ls   = s.ls;
+    if (typeof s.mH    === 'boolean') ST.mH   = s.mH;
+    if (typeof s.mV    === 'boolean') ST.mV   = s.mV;
+    if (typeof s.ksH   === 'number') ST.ksH   = s.ksH;
+    if (typeof s.ksV   === 'number') ST.ksV   = s.ksV;
+  } catch(_) {}
+}
+
+function saveST() {
+  try {
+    localStorage.setItem(SKEY, JSON.stringify({
+      color:ST.color, dim:ST.dim, ls:ST.ls,
+      mH:ST.mH, mV:ST.mV, ksH:ST.ksH, ksV:ST.ksV,
+    }));
+  } catch(_) {}
+}
+
+// ════════════════════════════════════════════════════════
+//  COLOR HELPERS
+// ════════════════════════════════════════════════════════
+function rgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function setCSSColor(hex) {
+  document.documentElement.style.setProperty('--col',    hex);
+  document.documentElement.style.setProperty('--col-bd', rgba(hex, 0.15));
+}
+
+// ════════════════════════════════════════════════════════
+//  7-SEGMENT — flat, no shadowBlur
+// ════════════════════════════════════════════════════════
 const SEG = {
-  '0':[1,1,1,1,1,1,0], '1':[0,1,1,0,0,0,0],
-  '2':[1,1,0,1,1,0,1], '3':[1,1,1,1,0,0,1],
-  '4':[0,1,1,0,0,1,1], '5':[1,0,1,1,0,1,1],
-  '6':[1,0,1,1,1,1,1], '7':[1,1,1,0,0,0,0],
-  '8':[1,1,1,1,1,1,1], '9':[1,1,1,1,0,1,1],
-  '-':[0,0,0,0,0,0,1], ' ':[0,0,0,0,0,0,0],
+  '0':[1,1,1,1,1,1,0],'1':[0,1,1,0,0,0,0],
+  '2':[1,1,0,1,1,0,1],'3':[1,1,1,1,0,0,1],
+  '4':[0,1,1,0,0,1,1],'5':[1,0,1,1,0,1,1],
+  '6':[1,0,1,1,1,1,1],'7':[1,1,1,0,0,0,0],
+  '8':[1,1,1,1,1,1,1],'9':[1,1,1,1,0,1,1],
+  '-':[0,0,0,0,0,0,1],' ':[0,0,0,0,0,0,0],
 };
 
 function drawDigit(ctx, x, y, w, h, ch, col, dim) {
-  const s = SEG[ch] || SEG[' '];
-  const sw   = Math.max(2, w * 0.105);
-  const gap  = sw * 0.65;
-  const r    = sw * 0.5;
-  const midY = y + h * 0.5;
-
-  ctx.lineCap = 'round';
-
-  function seg(on, x1,y1,x2,y2) {
+  const s  = SEG[ch] ?? SEG[' '];
+  const sw = Math.max(2, w * 0.10);
+  const g  = sw * 0.58;
+  const r  = sw * 0.44;
+  const my = y + h * 0.5;
+  ctx.lineCap   = 'round';
+  ctx.shadowBlur = 0;
+  const seg = (on, x1,y1,x2,y2) => {
     ctx.strokeStyle = on ? col : dim;
     ctx.lineWidth   = sw;
-    ctx.shadowBlur  = on ? sw * 2.8 : 0;
-    ctx.shadowColor = col;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-
-  seg(s[0], x+gap+r,   y+r,       x+w-gap-r, y+r);
-  seg(s[1], x+w-r,     y+gap+r,   x+w-r,     midY-gap);
-  seg(s[2], x+w-r,     midY+gap,  x+w-r,     y+h-gap-r);
-  seg(s[3], x+gap+r,   y+h-r,     x+w-gap-r, y+h-r);
-  seg(s[4], x+r,       midY+gap,  x+r,        y+h-gap-r);
-  seg(s[5], x+r,       y+gap+r,   x+r,        midY-gap);
-  seg(s[6], x+gap+r,   midY,      x+w-gap-r,  midY);
-
-  ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  };
+  seg(s[0], x+g+r,  y+r,     x+w-g-r, y+r);
+  seg(s[1], x+w-r,  y+g+r,   x+w-r,   my-g);
+  seg(s[2], x+w-r,  my+g,    x+w-r,   y+h-g-r);
+  seg(s[3], x+g+r,  y+h-r,   x+w-g-r, y+h-r);
+  seg(s[4], x+r,    my+g,    x+r,     y+h-g-r);
+  seg(s[5], x+r,    y+g+r,   x+r,     my-g);
+  seg(s[6], x+g+r,  my,      x+w-g-r, my);
 }
 
 function drawColon(ctx, x, y, w, h, col) {
-  const r = Math.max(3, w * 0.13);
+  const r = Math.max(2.5, w * 0.12);
   ctx.fillStyle  = col;
-  ctx.shadowBlur = r * 3;
-  ctx.shadowColor= col;
+  ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(x+w/2, y+h*.33, r, 0, Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(x+w/2, y+h*.67, r, 0, Math.PI*2); ctx.fill();
-  ctx.shadowBlur = 0;
 }
 
 function measureStr(str, dW) {
-  const cW = dW * 0.4, sp = dW * 0.11;
-  let w = 0;
-  for (let i=0;i<str.length;i++) {
-    w += str[i]===':'? cW : dW;
-    if (i<str.length-1) w += sp;
-  }
-  return w;
+  const cW = dW*0.38, sp = dW*0.10;
+  return str.split('').reduce((acc, ch, i) =>
+    acc + (ch===':'?cW:dW) + (i<str.length-1?sp:0), 0);
 }
 
 function drawStr(ctx, str, x, y, dW, dH, col, dim) {
-  const cW = dW * 0.4, sp = dW * 0.11;
+  const cW = dW*0.38, sp = dW*0.10;
   let cx = x;
   for (const ch of str) {
     if (ch===':') { drawColon(ctx,cx,y,cW,dH,col); cx+=cW+sp; }
@@ -484,380 +573,395 @@ function drawStr(ctx, str, x, y, dW, dH, col, dim) {
   }
 }
 
-// ================================================================
-//  CANVASES
-// ================================================================
-const csvSpd = document.getElementById('cvs-spd');
-const csvClk = document.getElementById('cvs-clk');
-const csvCmp = document.getElementById('cvs-cmp');
-const ctxSpd = csvSpd.getContext('2d');
-const ctxClk = csvClk.getContext('2d');
-const ctxCmp = csvCmp.getContext('2d');
+// ════════════════════════════════════════════════════════
+//  CANVAS REFS
+// ════════════════════════════════════════════════════════
+const csvSpd=document.getElementById('cvs-spd'), ctxSpd=csvSpd.getContext('2d');
+const csvClk=document.getElementById('cvs-clk'), ctxClk=csvClk.getContext('2d');
+const csvCmp=document.getElementById('cvs-cmp'), ctxCmp=csvCmp.getContext('2d');
 
-// ================================================================
-//  DRAW SPEED
-// ================================================================
+// ════════════════════════════════════════════════════════
+//  DRAW — SPEED
+// ════════════════════════════════════════════════════════
 function drawSpeed() {
-  const el = document.getElementById('s-spd');
-  const lH = 18, uH = 16, pad = lH + uH + 14;
-  const W  = el.clientWidth;
-  const H  = Math.max(30, el.clientHeight - pad);
-
-  csvSpd.width  = W;
-  csvSpd.height = H;
+  const el=document.getElementById('s-spd');
+  const W=el.clientWidth, H=el.clientHeight;
+  if (!W||!H) return;
+  csvSpd.width=W; csvSpd.height=H;
   ctxSpd.clearRect(0,0,W,H);
 
-  const str = ST.gpsOk ? String(Math.round(ST.speed)).padStart(3,' ') : '---';
-  const N   = 3, sp = 0.11;
-  let dW = (W * 0.88) / (N + (N-1)*sp);
+  const COL=ST.color, DIM=rgba(COL,0.07);
+
+  // bottom: large km/h label
+  const uFsz = Math.max(14, H*0.115);
+  const uH   = uFsz*1.7;
+
+  // digits fill remaining space
+  const avail = H - uH;
+  let dW = (W*0.86) / (3 + 2*0.10);
   let dH = dW * 1.9;
-  if (dH > H * 0.93) { dH = H * 0.93; dW = dH / 1.9; }
+  if (dH > avail*0.90) { dH=avail*0.90; dW=dH/1.9; }
 
-  const tw   = measureStr(str, dW);
-  const sX   = (W - tw) / 2;
-  const sY   = (H - dH) / 2;
+  const str = ST.gpsOk ? String(Math.round(ST.speed)).padStart(3,' ') : '---';
+  const tw  = measureStr(str, dW);
+  const sX  = (W-tw)/2;
+  const sY  = (avail-dH)/2;
+  drawStr(ctxSpd, str, sX, sY, dW, dH, COL, DIM);
 
-  drawStr(ctxSpd, str, sX, sY, dW, dH, '#00ffff', 'rgba(0,255,255,0.07)');
+  // km/h — flat bold text, large for visibility
+  ctxSpd.fillStyle    = COL;
+  ctxSpd.font         = `bold ${uFsz}px 'Courier New',monospace`;
+  ctxSpd.textAlign    = 'center';
+  ctxSpd.textBaseline = 'bottom';
+  ctxSpd.shadowBlur   = 0;
+  ctxSpd.fillText('km/h', W/2, H - H*0.012);
 }
 
-// ================================================================
-//  DRAW CLOCK
-// ================================================================
+// ════════════════════════════════════════════════════════
+//  DRAW — CLOCK
+// ════════════════════════════════════════════════════════
 function drawClock() {
-  const el = document.getElementById('s-clk');
-  const lH = 18;
-  const W  = el.clientWidth;
-  const H  = Math.max(30, el.clientHeight - lH - 6);
-
-  csvClk.width  = W;
-  csvClk.height = H;
+  const el=document.getElementById('s-clk');
+  const W=el.clientWidth, H=el.clientHeight;
+  if (!W||!H) return;
+  csvClk.width=W; csvClk.height=H;
   ctxClk.clearRect(0,0,W,H);
 
-  const now = new Date();
-  const hh  = String(now.getHours()).padStart(2,'0');
-  const mm  = String(now.getMinutes()).padStart(2,'0');
-  const ss  = String(now.getSeconds()).padStart(2,'0');
-  const hmS = `${hh}:${mm}`;
+  const COL=ST.color, DIM=rgba(COL,0.07);
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  const ss=String(now.getSeconds()).padStart(2,'0');
 
-  const hmH = H * 0.58;
-  const hmW = hmH / 1.9;
-  const hmW_ = measureStr(hmS, hmW);
-  drawStr(ctxClk, hmS, (W-hmW_)/2, H*0.02, hmW, hmH, '#ffffff', 'rgba(255,255,255,0.07)');
+  // HH:MM — upper 56%
+  const hmH=H*0.54, hmW=hmH/1.9;
+  const hmS=`${hh}:${mm}`;
+  drawStr(ctxClk, hmS, (W-measureStr(hmS,hmW))/2, H*0.04, hmW, hmH, COL, DIM);
 
-  const ssH = H * 0.30;
-  const ssW = ssH / 1.9;
-  const ssW_ = measureStr(ss, ssW);
-  drawStr(ctxClk, ss, (W-ssW_)/2, H*0.02+hmH+H*0.05, ssW, ssH, '#7fff00', 'rgba(127,255,0,0.07)');
+  // SS — 27%
+  const ssH=H*0.27, ssW=ssH/1.9;
+  drawStr(ctxClk, ss, (W-measureStr(ss,ssW))/2, H*0.04+hmH+H*0.05, ssW, ssH, COL, DIM);
 }
 
-// ================================================================
-//  DRAW COMPASS
-// ================================================================
-const CARD = {0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
+// ════════════════════════════════════════════════════════
+//  DRAW — COMPASS
+// ════════════════════════════════════════════════════════
+const CARD={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
 
 function drawCompass() {
-  const el = document.getElementById('s-cmp');
-  const W  = el.clientWidth;
-  const H  = Math.max(60, el.clientHeight);
-
-  csvCmp.width  = W;
-  csvCmp.height = H;
+  const el=document.getElementById('s-cmp');
+  const W=el.clientWidth, H=Math.max(60,el.clientHeight);
+  if (!W) return;
+  csvCmp.width=W; csvCmp.height=H;
   ctxCmp.clearRect(0,0,W,H);
 
-  const hdg      = ST.heading;
-  const tapeH    = H * 0.70;
-  const tapeBase = tapeH;
-  const VIS      = 100;
-  const pxDeg    = W / VIS;
+  const COL=ST.color, hdg=ST.heading;
+  const tB=H*0.68;          // tape base Y
+  const VIS=100;             // visible degrees
+  const ppd=W/VIS;           // pixels per degree
 
-  ctxCmp.strokeStyle = 'rgba(0,255,136,0.18)';
-  ctxCmp.lineWidth   = 1;
-  ctxCmp.beginPath();
-  ctxCmp.moveTo(0, tapeBase);
-  ctxCmp.lineTo(W, tapeBase);
-  ctxCmp.stroke();
+  // base line
+  ctxCmp.strokeStyle=rgba(COL,0.20); ctxCmp.lineWidth=1;
+  ctxCmp.beginPath(); ctxCmp.moveTo(0,tB); ctxCmp.lineTo(W,tB); ctxCmp.stroke();
 
-  const lo = Math.floor(hdg - VIS/2 - 5);
-  const hi = Math.ceil (hdg + VIS/2 + 5);
+  // ticks & labels
+  for (let d=Math.floor(hdg-VIS/2-5); d<=Math.ceil(hdg+VIS/2+5); d++) {
+    if (d%5!==0) continue;
+    const nd=((d%360)+360)%360;
+    const px=W/2+(d-hdg)*ppd;
+    if (px<-12||px>W+12) continue;
 
-  for (let d = lo; d <= hi; d++) {
-    if (d % 5 !== 0) continue;
-    const nd = ((d % 360) + 360) % 360;
-    const px = W/2 + (d - hdg) * pxDeg;
-    if (px < -10 || px > W+10) continue;
+    const isCard=nd%45===0, isMaj=nd%10===0;
+    const tH=isCard?tB*0.60:isMaj?tB*0.36:tB*0.18;
 
-    const isCard  = nd % 45 === 0;
-    const isMajor = nd % 10 === 0;
+    ctxCmp.strokeStyle=isCard?COL:isMaj?rgba(COL,.55):rgba(COL,.20);
+    ctxCmp.lineWidth  =isCard?2:1;
+    ctxCmp.shadowBlur =0;
+    ctxCmp.beginPath(); ctxCmp.moveTo(px,tB); ctxCmp.lineTo(px,tB-tH); ctxCmp.stroke();
 
-    const tickH = isCard  ? tapeH * 0.60 :
-                  isMajor ? tapeH * 0.38 :
-                             tapeH * 0.20;
-
-    const tCol  = isCard ? '#00e5ff' : isMajor ? 'rgba(0,255,136,0.55)' : 'rgba(0,255,136,0.22)';
-    const tW    = isCard ? 2 : 1;
-
-    ctxCmp.strokeStyle = tCol;
-    ctxCmp.lineWidth   = tW;
-    ctxCmp.shadowBlur  = isCard ? 6 : 0;
-    ctxCmp.shadowColor = '#00e5ff';
-    ctxCmp.beginPath();
-    ctxCmp.moveTo(px, tapeBase);
-    ctxCmp.lineTo(px, tapeBase - tickH);
-    ctxCmp.stroke();
-    ctxCmp.shadowBlur = 0;
-
-    if (isMajor) {
-      const lbl  = CARD[nd] != null ? CARD[nd] : String(nd);
-      const fSz  = isCard ? H * 0.175 : H * 0.14;
-      ctxCmp.fillStyle  = isCard ? '#00e5ff' : 'rgba(0,255,136,0.42)';
-      ctxCmp.font       = `${isCard?'bold ':''}${fSz}px 'Courier New',monospace`;
-      ctxCmp.textAlign      = 'center';
-      ctxCmp.textBaseline   = 'bottom';
-      ctxCmp.shadowBlur  = isCard ? 6 : 0;
-      ctxCmp.shadowColor = '#00e5ff';
-      ctxCmp.fillText(lbl, px, tapeBase - tickH - 2);
-      ctxCmp.shadowBlur = 0;
+    if (isMaj) {
+      const lbl=CARD[nd]??String(nd);
+      const fSz=isCard?H*0.165:H*0.125;
+      ctxCmp.fillStyle    =isCard?COL:rgba(COL,.42);
+      ctxCmp.font         =`${isCard?'bold ':''}${fSz}px 'Courier New',monospace`;
+      ctxCmp.textAlign    ='center';
+      ctxCmp.textBaseline ='bottom';
+      ctxCmp.fillText(lbl, px, tB-tH-2);
     }
   }
 
-  const triH = tapeH * 0.20;
-  const triW = triH * 0.88;
-  ctxCmp.fillStyle  = '#ff00ff';
-  ctxCmp.shadowBlur = 10;
-  ctxCmp.shadowColor= '#ff00ff';
+  // centre indicator (▼ + vertical line)
+  const triH=tB*0.20, triW=triH*0.85;
+  ctxCmp.fillStyle=COL; ctxCmp.shadowBlur=0;
   ctxCmp.beginPath();
-  ctxCmp.moveTo(W/2,          tapeBase + 3);
-  ctxCmp.lineTo(W/2 - triW/2, tapeBase - triH + 3);
-  ctxCmp.lineTo(W/2 + triW/2, tapeBase - triH + 3);
-  ctxCmp.closePath();
-  ctxCmp.fill();
+  ctxCmp.moveTo(W/2,         tB+2);
+  ctxCmp.lineTo(W/2-triW/2,  tB-triH+2);
+  ctxCmp.lineTo(W/2+triW/2,  tB-triH+2);
+  ctxCmp.closePath(); ctxCmp.fill();
 
-  ctxCmp.strokeStyle = '#ff00ff';
-  ctxCmp.lineWidth   = 1.5;
+  ctxCmp.strokeStyle=COL; ctxCmp.lineWidth=1.5;
   ctxCmp.beginPath();
-  ctxCmp.moveTo(W/2, tapeBase);
-  ctxCmp.lineTo(W/2, tapeBase - tapeH * 0.62);
+  ctxCmp.moveTo(W/2, tB-triH);
+  ctxCmp.lineTo(W/2, tB-tB*0.65);
   ctxCmp.stroke();
-  ctxCmp.shadowBlur = 0;
 
-  const fw = W * 0.11;
-  const gL = ctxCmp.createLinearGradient(0,0,fw,0);
+  // edge fades
+  const fw=W*0.10;
+  const gL=ctxCmp.createLinearGradient(0,0,fw,0);
   gL.addColorStop(0,'rgba(0,0,0,1)'); gL.addColorStop(1,'rgba(0,0,0,0)');
-  const gR = ctxCmp.createLinearGradient(W-fw,0,W,0);
+  const gR=ctxCmp.createLinearGradient(W-fw,0,W,0);
   gR.addColorStop(0,'rgba(0,0,0,0)'); gR.addColorStop(1,'rgba(0,0,0,1)');
-  ctxCmp.fillStyle = gL; ctxCmp.fillRect(0,0,fw,tapeH+4);
-  ctxCmp.fillStyle = gR; ctxCmp.fillRect(W-fw,0,fw,tapeH+4);
+  ctxCmp.fillStyle=gL; ctxCmp.fillRect(0,0,fw,tB+4);
+  ctxCmp.fillStyle=gR; ctxCmp.fillRect(W-fw,0,fw,tB+4);
 
-  const hdgStr   = String(Math.round(hdg)).padStart(3,'0') + '°';
-  const hdgY     = tapeBase + 4;
-  const hdgFsz   = Math.min((H - tapeBase) * 0.82, H * 0.21);
-  ctxCmp.fillStyle     = '#ff00ff';
-  ctxCmp.font          = `bold ${hdgFsz}px 'Courier New',monospace`;
-  ctxCmp.textAlign     = 'center';
-  ctxCmp.textBaseline  = 'top';
-  ctxCmp.shadowBlur    = 10;
-  ctxCmp.shadowColor   = '#ff00ff';
-  ctxCmp.fillText(hdgStr, W/2, hdgY);
-  ctxCmp.shadowBlur = 0;
+  // heading readout (°)
+  const hdgFsz=Math.min((H-tB)*0.78, H*0.20);
+  ctxCmp.fillStyle    =COL;
+  ctxCmp.font         =`bold ${hdgFsz}px 'Courier New',monospace`;
+  ctxCmp.textAlign    ='center';
+  ctxCmp.textBaseline ='top';
+  ctxCmp.shadowBlur   =0;
+  ctxCmp.fillText(String(Math.round(hdg)).padStart(3,'0')+'°', W/2, tB+3);
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════
 //  ANIMATION LOOP
-// ================================================================
-let _lastSec = -1;
-
+// ════════════════════════════════════════════════════════
+let _lastSec=-1;
 function loop() {
-  const sec = new Date().getSeconds();
-
+  const sec=new Date().getSeconds();
   drawSpeed();
   drawCompass();
-  if (sec !== _lastSec) { _lastSec = sec; drawClock(); }
+  if (sec!==_lastSec) { _lastSec=sec; drawClock(); }
 
-  document.getElementById('dot-gps').className = 'dot ' + (ST.gpsOk ? 'ok' : 'err');
-  document.getElementById('dot-cmp').className = 'dot ' + (ST.cmpOk ? 'ok' : '');
+  document.getElementById('dot-gps').className='dot '+(ST.gpsOk?'ok':'err');
+  document.getElementById('dot-cmp').className='dot '+(ST.cmpOk?'ok':'');
 
   requestAnimationFrame(loop);
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════
 //  GPS
-// ================================================================
+// ════════════════════════════════════════════════════════
 function startGPS() {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
-    pos => {
-      ST.gpsOk = true;
-      ST.speed  = pos.coords.speed != null ? pos.coords.speed * 3.6 : 0;
-    },
-    () => { ST.gpsOk = false; },
-    { enableHighAccuracy:true, maximumAge:1000, timeout:15000 }
+    p => { ST.gpsOk=true; ST.speed=p.coords.speed!=null?p.coords.speed*3.6:0; },
+    ()=> { ST.gpsOk=false; },
+    {enableHighAccuracy:true, maximumAge:1000, timeout:15000}
   );
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════
 //  COMPASS
-// ================================================================
-let _cmpFilter = null;
-
+// ════════════════════════════════════════════════════════
+let _cf=null;
 function onOrient(e) {
-  let raw = null;
-  if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) {
-    raw = e.webkitCompassHeading;
-  } else if (e.alpha != null) {
-    raw = ((360 - e.alpha) % 360 + 360) % 360;
+  let raw=null;
+  if (typeof e.webkitCompassHeading==='number'&&!isNaN(e.webkitCompassHeading)) {
+    raw=e.webkitCompassHeading;
+  } else if (e.alpha!=null) {
+    raw=((360-e.alpha)%360+360)%360;
   }
-  if (raw == null) return;
-  ST.cmpOk = true;
-  if (_cmpFilter == null) { _cmpFilter = raw; }
+  if (raw==null) return;
+  ST.cmpOk=true;
+  if (_cf==null) { _cf=raw; }
   else {
-    let d = raw - _cmpFilter;
-    if (d >  180) d -= 360;
-    if (d < -180) d += 360;
-    _cmpFilter = ((_cmpFilter + d * 0.18) + 360) % 360;
+    let d=raw-_cf;
+    if (d>180)d-=360; if(d<-180)d+=360;
+    _cf=((_cf+d*0.18)+360)%360;
   }
-  ST.heading = _cmpFilter;
+  ST.heading=_cf;
 }
-
 function startCompass() {
-  if (typeof DeviceOrientationEvent === 'undefined') return;
-  const attach = () => {
+  if (typeof DeviceOrientationEvent==='undefined') return;
+  const attach=()=>{
     window.addEventListener('deviceorientationabsolute', onOrient, true);
     window.addEventListener('deviceorientation',         onOrient, true);
   };
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
-      .then(r => { if (r === 'granted') attach(); })
-      .catch(() => {});
-  } else {
-    attach();
-  }
+  if (typeof DeviceOrientationEvent.requestPermission==='function') {
+    DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')attach();}).catch(()=>{});
+  } else { attach(); }
 }
 
-// ================================================================
-//  BRIGHTNESS SWIPE
-// ================================================================
-let _ty0 = null, _td0 = null;
+// ════════════════════════════════════════════════════════
+//  WAKE LOCK (keeps screen on; brightness = use OS setting)
+// ════════════════════════════════════════════════════════
+let _wl=null;
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) _wl=await navigator.wakeLock.request('screen');
+  } catch(_) {}
+}
+document.addEventListener('visibilitychange', ()=>{
+  if (document.visibilityState==='visible'&&!_wl) requestWakeLock();
+});
 
-document.addEventListener('touchstart', e => {
-  if (e.target.closest('#mpop') || e.target.closest('#inst')) return;
-  _ty0 = e.touches[0].clientY;
-  _td0 = ST.dim;
-}, {passive:true});
+// ════════════════════════════════════════════════════════
+//  BRIGHTNESS (dim overlay)
+// ════════════════════════════════════════════════════════
+function setDim(v) {
+  ST.dim=Math.max(0,Math.min(0.94,v));
+  document.documentElement.style.setProperty('--dim',ST.dim);
+  const pct=Math.round((1-ST.dim)*100);
+  document.getElementById('dim-val').textContent=pct+'%';
+  document.getElementById('dim-slider').value=Math.round(ST.dim*100);
+  saveST();
+}
 
-document.addEventListener('touchmove', e => {
-  if (_ty0 == null || e.target.closest('#mpop')) return;
-  const dy    = e.touches[0].clientY - _ty0;
-  const delta = (dy / window.innerHeight) * 1.25;
-  ST.dim = Math.max(0, Math.min(0.94, _td0 + delta));
-  document.documentElement.style.setProperty('--dim', ST.dim);
-}, {passive:true});
+let _ty0=null, _td0=null;
+document.addEventListener('touchstart', e=>{
+  if (e.target.closest('#mpop')||e.target.closest('#inst')) return;
+  _ty0=e.touches[0].clientY; _td0=ST.dim;
+},{passive:true});
+document.addEventListener('touchmove', e=>{
+  if (_ty0==null||e.target.closest('#mpop')) return;
+  setDim(_td0+(e.touches[0].clientY-_ty0)/window.innerHeight*1.25);
+},{passive:true});
+document.addEventListener('touchend', ()=>{_ty0=null;},{passive:true});
 
-document.addEventListener('touchend', () => { _ty0 = null; }, {passive:true});
-
-// ================================================================
+// ════════════════════════════════════════════════════════
 //  INSTRUCTION OVERLAY
-// ================================================================
+// ════════════════════════════════════════════════════════
 document.getElementById('inst').addEventListener('click', function() {
   this.classList.add('fade');
-  setTimeout(() => { this.style.display = 'none'; }, 700);
+  setTimeout(()=>{this.style.display='none';},680);
   startGPS();
   startCompass();
+  requestWakeLock();
 });
 
-// ================================================================
+// ════════════════════════════════════════════════════════
 //  MENU
-// ================================================================
-let _menuOpen = false;
-
-document.getElementById('mbtn').addEventListener('click', e => {
+// ════════════════════════════════════════════════════════
+let _mOpen=false;
+document.getElementById('mbtn').addEventListener('click', e=>{
   e.stopPropagation();
-  _menuOpen = !_menuOpen;
-  document.getElementById('mpop').classList.toggle('open', _menuOpen);
+  _mOpen=!_mOpen;
+  document.getElementById('mpop').classList.toggle('open',_mOpen);
 });
 document.getElementById('mclose').addEventListener('click', closeMenu);
-document.addEventListener('click', e => {
-  if (_menuOpen && !e.target.closest('#mpop') && !e.target.closest('#mbtn')) closeMenu();
+document.addEventListener('click', e=>{
+  if (_mOpen&&!e.target.closest('#mpop')&&!e.target.closest('#mbtn')) closeMenu();
 });
-function closeMenu() {
-  _menuOpen = false;
-  document.getElementById('mpop').classList.remove('open');
-}
+function closeMenu(){_mOpen=false;document.getElementById('mpop').classList.remove('open');}
 
-// ================================================================
-//  LAYOUT TOGGLE
-// ================================================================
-function toggleLayout() {
-  ST.ls = !ST.ls;
-  document.body.classList.toggle('ls',  ST.ls);
-  document.body.classList.toggle('pt', !ST.ls);
-  const btn = document.getElementById('btn-layout');
-  btn.textContent = ST.ls ? 'LANDSCAPE' : 'PORTRAIT';
-  btn.classList.toggle('on', ST.ls);
+// ─── Color ────────────────────────────────────────────
+function applyColor(hex) {
+  ST.color=hex;
+  setCSSColor(hex);
+  document.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s.dataset.c===hex));
+  document.getElementById('color-pick').value=hex;
+  saveST();
 }
-document.getElementById('btn-layout').addEventListener('click', toggleLayout);
+document.querySelectorAll('.sw').forEach(b=>b.addEventListener('click',()=>applyColor(b.dataset.c)));
+document.getElementById('color-pick').addEventListener('input',function(){applyColor(this.value);});
 
-// ================================================================
-//  MIRROR TOGGLES
-// ================================================================
+// ─── Brightness slider ────────────────────────────────
+document.getElementById('dim-slider').addEventListener('input',function(){
+  setDim(parseFloat(this.value)/100);
+});
+
+// ─── Orientation ─────────────────────────────────────
+function setLayout(ls) {
+  ST.ls=ls;
+  document.body.classList.toggle('ls', ls);
+  document.body.classList.toggle('pt',!ls);
+  document.getElementById('btn-ls').classList.toggle('on', ls);
+  document.getElementById('btn-pt').classList.toggle('on',!ls);
+  saveST();
+}
+document.getElementById('btn-pt').addEventListener('click',()=>setLayout(false));
+document.getElementById('btn-ls').addEventListener('click',()=>setLayout(true));
+
+// ─── Mirror ───────────────────────────────────────────
 function applyXform() {
-  const mx = document.getElementById('hud-mirror');
-  const ks = document.getElementById('hud-ks');
-  const sx = ST.mH ? -1 : 1;
-  const sy = ST.mV ? -1 : 1;
-  mx.style.transform = `scale(${sx},${sy})`;
-  const p  = 900;
-  const h_ = ST.ksH, v_ = ST.ksV;
-  ks.style.transform = (h_===0 && v_===0)
-    ? 'none'
-    : `perspective(${p}px) rotateY(${h_}deg) rotateX(${v_}deg)`;
+  document.getElementById('hud-mirror').style.transform=
+    `scale(${ST.mH?-1:1},${ST.mV?-1:1})`;
+  document.getElementById('hud-ks').style.transform=
+    (ST.ksH===0&&ST.ksV===0)?'none'
+    :`perspective(900px) rotateY(${ST.ksH}deg) rotateX(${ST.ksV}deg)`;
+}
+document.getElementById('btn-mh').addEventListener('click', function(){
+  ST.mH=!ST.mH;
+  this.textContent=ST.mH?'ON':'OFF';
+  this.classList.toggle('on',ST.mH);
+  applyXform(); saveST();
+});
+document.getElementById('btn-mv').addEventListener('click', function(){
+  ST.mV=!ST.mV;
+  this.textContent=ST.mV?'ON':'OFF';
+  this.classList.toggle('on',ST.mV);
+  applyXform(); saveST();
+});
+
+// ─── Keystone ─────────────────────────────────────────
+document.getElementById('ksh').addEventListener('input',function(){
+  ST.ksH=parseFloat(this.value);
+  document.getElementById('ksh-v').textContent=this.value+'°';
+  applyXform(); saveST();
+});
+document.getElementById('ksv').addEventListener('input',function(){
+  ST.ksV=parseFloat(this.value);
+  document.getElementById('ksv-v').textContent=this.value+'°';
+  applyXform(); saveST();
+});
+
+// ════════════════════════════════════════════════════════
+//  APPLY ALL SAVED SETTINGS TO DOM
+// ════════════════════════════════════════════════════════
+function applyAllToDOM() {
+  // color
+  setCSSColor(ST.color);
+  document.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s.dataset.c===ST.color));
+  document.getElementById('color-pick').value=ST.color;
+
+  // dim
+  document.documentElement.style.setProperty('--dim',ST.dim);
+  document.getElementById('dim-slider').value=Math.round(ST.dim*100);
+  document.getElementById('dim-val').textContent=Math.round((1-ST.dim)*100)+'%';
+
+  // layout
+  document.body.classList.toggle('ls', ST.ls);
+  document.body.classList.toggle('pt',!ST.ls);
+  document.getElementById('btn-ls').classList.toggle('on', ST.ls);
+  document.getElementById('btn-pt').classList.toggle('on',!ST.ls);
+
+  // mirror
+  document.getElementById('btn-mh').textContent=ST.mH?'ON':'OFF';
+  document.getElementById('btn-mh').classList.toggle('on',ST.mH);
+  document.getElementById('btn-mv').textContent=ST.mV?'ON':'OFF';
+  document.getElementById('btn-mv').classList.toggle('on',ST.mV);
+
+  // keystone
+  document.getElementById('ksh').value=ST.ksH;
+  document.getElementById('ksv').value=ST.ksV;
+  document.getElementById('ksh-v').textContent=ST.ksH+'°';
+  document.getElementById('ksv-v').textContent=ST.ksV+'°';
+
+  applyXform();
 }
 
-document.getElementById('btn-mh').addEventListener('click', function() {
-  ST.mH = !ST.mH;
-  this.textContent = ST.mH ? 'ON' : 'OFF';
-  this.classList.toggle('on', ST.mH);
-  applyXform();
-});
-document.getElementById('btn-mv').addEventListener('click', function() {
-  ST.mV = !ST.mV;
-  this.textContent = ST.mV ? 'ON' : 'OFF';
-  this.classList.toggle('on', ST.mV);
-  applyXform();
-});
-
-// ================================================================
-//  KEYSTONE SLIDERS
-// ================================================================
-document.getElementById('ksh').addEventListener('input', function() {
-  ST.ksH = parseFloat(this.value);
-  document.getElementById('ksh-v').textContent = this.value + '°';
-  applyXform();
-});
-document.getElementById('ksv').addEventListener('input', function() {
-  ST.ksV = parseFloat(this.value);
-  document.getElementById('ksv-v').textContent = this.value + '°';
-  applyXform();
-});
-
-// ================================================================
-//  RESIZE
-// ================================================================
-new ResizeObserver(() => { drawSpeed(); drawClock(); drawCompass(); })
+// ════════════════════════════════════════════════════════
+//  RESIZE OBSERVER
+// ════════════════════════════════════════════════════════
+new ResizeObserver(()=>{drawSpeed();drawClock();drawCompass();})
   .observe(document.getElementById('hud'));
 
-// ================================================================
-//  SERVICE WORKER REGISTRATION
-// ================================================================
+// ════════════════════════════════════════════════════════
+//  SERVICE WORKER
+// ════════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .catch(err => console.warn('SW registration failed:', err));
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('SW:',e));
   });
 }
 
-// ================================================================
-//  START
-// ================================================================
+// ════════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════════
+loadST();
+applyAllToDOM();
 loop();
 </script>
 </body>
